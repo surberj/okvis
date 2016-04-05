@@ -339,6 +339,7 @@ class ThreadedKFVio : public VioInterface {
   okvis::Time lastAddedStateTimestamp_; ///< Timestamp of the newest state in the Estimator.
   okvis::Time lastAddedImageTimestamp_; ///< Timestamp of the newest image added to the image input queue.
 
+  int keyframe_counter_;
 
   /// @name Measurement input queues
   /// @{
@@ -418,6 +419,7 @@ class ThreadedKFVio : public VioInterface {
   okvis::MockVioFrontendInterface& frontend_;
 #else
   okvis::Estimator estimator_;    ///< The backend estimator.
+  okvis::Estimator global_estimator_;    ///< The global backend estimator keeping all keyframes for global optimization in the end.
   okvis::Frontend frontend_;      ///< The frontend.
 #endif
 

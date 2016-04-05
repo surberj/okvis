@@ -56,6 +56,7 @@ namespace okvis {
 Estimator::Estimator(
     std::shared_ptr<okvis::ceres::Map> mapPtr)
     : mapPtr_(mapPtr),
+      globalmapPtr_(mapPtr),
       referencePoseId_(0),
       cauchyLossFunctionPtr_(new ::ceres::CauchyLoss(1)),
       huberLossFunctionPtr_(new ::ceres::HuberLoss(1)),
@@ -66,6 +67,7 @@ Estimator::Estimator(
 // The default constructor.
 Estimator::Estimator()
     : mapPtr_(new okvis::ceres::Map()),
+      globalmapPtr_(new okvis::ceres::Map()),
       referencePoseId_(0),
       cauchyLossFunctionPtr_(new ::ceres::CauchyLoss(1)),
       huberLossFunctionPtr_(new ::ceres::HuberLoss(1)),
@@ -329,6 +331,120 @@ bool Estimator::addStates(
                 lastElementIterator->second.sensors.at(SensorStates::Camera).at(
                     i).at(CameraSensorStates::T_SCi).id),
             mapPtr_->parameterBlockPtr(
+                states.sensors.at(SensorStates::Camera).at(i).at(
+                    CameraSensorStates::T_SCi).id));
+        //mapPtr_->isJacobianCorrect(id,1.0e-6);
+      }
+    }
+    // only camera. this is slightly inconsistent, since the IMU error term contains both
+    // a term for global states as well as for the sensor-internal ones (i.e. biases).
+    // TODO: magnetometer, pressure, ...
+  }
+
+  return true;
+}
+
+// Add a pose to the state.
+bool Estimator::addMultiframe(okvis::MultiFramePtr multiFrame,
+                              okvis::kinematics::Transformation T_WS) {
+
+
+  // create a states object:
+  States states(true, multiFrame->id(), multiFrame->timestamp());
+
+  // create global states
+  std::shared_ptr<okvis::ceres::PoseParameterBlock> poseParameterBlock(
+      new okvis::ceres::PoseParameterBlock(T_WS, states.id,
+                                           multiFrame->timestamp()));
+  states.global.at(GlobalStates::T_WS).exists = true;
+  states.global.at(GlobalStates::T_WS).id = states.id;
+
+  if(globalstatesMap_.empty())
+  {
+    globalreferencePoseId_ = states.id; // set this as reference pose
+    if (!globalmapPtr_->addParameterBlock(poseParameterBlock,ceres::Map::Pose6d)) {
+      return false;
+    }
+  } else {
+    if (!globalmapPtr_->addParameterBlock(poseParameterBlock,ceres::Map::Pose6d)) {
+      return false;
+    }
+  }
+
+  // add to buffer
+  globalstatesMap_.insert(std::pair<uint64_t, States>(states.id, states));
+
+  // the following will point to the last states:
+  std::map<uint64_t, States>::reverse_iterator lastElementIterator = globalstatesMap_.rbegin();
+  lastElementIterator++;
+
+  // initialize new sensor states
+  // cameras:
+  for (size_t i = 0; i < extrinsicsEstimationParametersVec_.size(); ++i) {
+
+    SpecificSensorStatesContainer cameraInfos(2);
+    cameraInfos.at(CameraSensorStates::T_SCi).exists=true;
+    cameraInfos.at(CameraSensorStates::Intrinsics).exists=false;
+    if(((extrinsicsEstimationParametersVec_.at(i).sigma_c_relative_translation<1e-12)||
+        (extrinsicsEstimationParametersVec_.at(i).sigma_c_relative_orientation<1e-12))&&
+        (globalstatesMap_.size() > 1)){
+      // use the same block...
+      cameraInfos.at(CameraSensorStates::T_SCi).id =
+          lastElementIterator->second.sensors.at(SensorStates::Camera).at(i).at(CameraSensorStates::T_SCi).id;
+    } else {
+      const okvis::kinematics::Transformation T_SC = *multiFrame->T_SC(i);
+      uint64_t id = IdProvider::instance().newId();
+      std::shared_ptr<okvis::ceres::PoseParameterBlock> extrinsicsParameterBlockPtr(
+          new okvis::ceres::PoseParameterBlock(T_SC, id,
+                                               multiFrame->timestamp()));
+      if(!globalmapPtr_->addParameterBlock(extrinsicsParameterBlockPtr,ceres::Map::Pose6d)){
+        return false;
+      }
+      cameraInfos.at(CameraSensorStates::T_SCi).id = id;
+    }
+    // update the states info
+    globalstatesMap_.rbegin()->second.sensors.at(SensorStates::Camera).push_back(cameraInfos);
+    states.sensors.at(SensorStates::Camera).push_back(cameraInfos);
+  }
+
+  // depending on whether or not this is the very beginning, we will add priors or relative terms to the last state:
+  if (statesMap_.size() == 1) {
+    // let's add a prior
+    Eigen::Matrix<double,6,6> information = Eigen::Matrix<double,6,6>::Zero();
+    information(5,5) = 1.0e8; information(0,0) = 1.0e8; information(1,1) = 1.0e8; information(2,2) = 1.0e8;
+    std::shared_ptr<ceres::PoseError > poseError(new ceres::PoseError(T_WS, information));
+    /*auto id2= */ globalmapPtr_->addResidualBlock(poseError,NULL,poseParameterBlock);
+    //mapPtr_->isJacobianCorrect(id2,1.0e-6);
+
+    // sensor states
+    for (size_t i = 0; i < extrinsicsEstimationParametersVec_.size(); ++i) {
+      globalmapPtr_->setParameterBlockConstant(
+            states.sensors.at(SensorStates::Camera).at(i).at(CameraSensorStates::T_SCi).id);
+    }
+  } else {
+    // add relative sensor state errors
+    for (size_t i = 0; i < extrinsicsEstimationParametersVec_.size(); ++i) {
+      if (lastElementIterator->second.sensors.at(SensorStates::Camera).at(i).at(CameraSensorStates::T_SCi).id !=
+          states.sensors.at(SensorStates::Camera).at(i).at(CameraSensorStates::T_SCi).id) {
+        // i.e. they are different estimated variables, so link them with a temporal error term
+        double dt = (states.timestamp - lastElementIterator->second.timestamp)
+            .toSec();
+        double translationSigmaC = extrinsicsEstimationParametersVec_.at(i)
+            .sigma_c_relative_translation;
+        double translationVariance = translationSigmaC * translationSigmaC * dt;
+        double rotationSigmaC = extrinsicsEstimationParametersVec_.at(i)
+            .sigma_c_relative_orientation;
+        double rotationVariance = rotationSigmaC * rotationSigmaC * dt;
+        std::shared_ptr<ceres::RelativePoseError> relativeExtrinsicsError(
+            new ceres::RelativePoseError(translationVariance,
+                                         rotationVariance));
+        globalmapPtr_->addResidualBlock(
+            relativeExtrinsicsError,
+            NULL,
+            globalmapPtr_->parameterBlockPtr(
+                lastElementIterator->second.sensors.at(SensorStates::Camera).at(
+                    i).at(CameraSensorStates::T_SCi).id),
+            globalmapPtr_->parameterBlockPtr(
                 states.sensors.at(SensorStates::Camera).at(i).at(
                     CameraSensorStates::T_SCi).id));
         //mapPtr_->isJacobianCorrect(id,1.0e-6);

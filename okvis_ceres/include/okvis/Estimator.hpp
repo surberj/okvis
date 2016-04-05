@@ -134,6 +134,15 @@ class Estimator : public VioBackendInterface
                  bool asKeyframe);
 
   /**
+   * @brief Add a pose to the state.
+   * @param multiFrame Matched multiFrame.
+   * @param T_WS transformation between multiframe and worldframe (prior for optimization)
+   * @return True if successful.
+   */
+  bool addMultiframe(okvis::MultiFramePtr multiFrame,
+                 okvis::kinematics::Transformation T_WS);
+
+  /**
    * @brief Prints state information to buffer.
    * @param poseId The pose Id for which to print.
    * @param buffer The puffer to print into.
@@ -553,11 +562,14 @@ class Estimator : public VioBackendInterface
 
   // the following keeps track of all the states at different time instances (key=poseId)
   std::map<uint64_t, States> statesMap_; ///< Buffer for currently considered states.
+  std::map<uint64_t, States> globalstatesMap_; ///< Buffer for currently considered states.
   std::map<uint64_t, okvis::MultiFramePtr> multiFramePtrMap_; ///< remember all needed okvis::MultiFrame.
   std::shared_ptr<okvis::ceres::Map> mapPtr_; ///< The underlying okvis::Map.
+  std::shared_ptr<okvis::ceres::Map> globalmapPtr_; ///< The underlying global okvis::Map.
 
   // this is the reference pose
   uint64_t referencePoseId_; ///< The pose ID of the reference (currently not changing)
+  uint64_t globalreferencePoseId_; ///< The pose ID of the global reference (currently not changing)
 
   // the following are updated after the optimization
   okvis::PointMap landmarksMap_; ///< Contains all the current landmarks (synched after optimisation).
