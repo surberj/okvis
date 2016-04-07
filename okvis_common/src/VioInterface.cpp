@@ -87,6 +87,12 @@ void VioInterface::setFullStateCallback(
   fullStateCallback_ = fullStateCallback;
 }
 
+// Set the fullStateCallback to be called every time a new state is estimated.
+void VioInterface::setFullStateCallbackWithReference(
+    const FullStateCallbackWithReference & fullStateCallbackWithReference) {
+  fullStateCallbackWithReference_ = fullStateCallbackWithReference;
+}
+
 // Set the callback to be called every time a new state is estimated.
 void VioInterface::setFullStateCallbackWithExtrinsics(
     const FullStateCallbackWithExtrinsics & fullStateCallbackWithExtrinsics) {

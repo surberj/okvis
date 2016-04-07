@@ -734,6 +734,7 @@ void ThreadedKFVio::optimizationLoop() {
     if (matchedFrames_.PopBlocking(&frame_pairs) == false)
       return;
     OptimizationResults result;
+    OptimizationResults global_result;
     {
       std::lock_guard<std::mutex> l(estimator_mutex_);
       optimizationTimer.start();
@@ -759,37 +760,43 @@ void ThreadedKFVio::optimizationLoop() {
       optimizationTimer.stop();
 
       // add optimized multiframes to the global estimator if the newest frame is a keyframe
-      if (estimator_.isKeyframe(estimator_.currentFrameId())) {
+      if (estimator_.isKeyframe(estimator_.currentFrameId()) && estimator_.currentFrameId()>0) {
+        keyframe_counter_++;
         LOG(WARNING) << "add keyframe number " << keyframe_counter_ << " to global estimator";
 
-/*        // add homogenious point parameter blocks for keypoints of this keyframe to the global estimator (constant)
-        // get landmarks from estimator_ and set them in global_estimator_
+        okvis::kinematics::Transformation T_WS;
+        estimator_.get_T_WS(estimator_.currentFrameId(), T_WS);
+        estimator_.set_T_WS_InGlobalEstimator(estimator_.currentFrameId(), T_WS);
+
+/*        // 1. add parmeter block with camera pose of this keyframe to the estimator (variable)
+        std::shared_ptr<okvis::MultiFrame> frame = estimator_.multiFrame(estimator_.currentFrameId());
+        okvis::kinematics::Transformation T_WS;
+        estimator_.get_T_WS(estimator_.currentFrameId(), T_WS);
+        if (!estimator_.addMultiframeToGlobal(frame, T_WS)) {
+          LOG(WARNING) << "Failed to add state to global estimator! will drop multiframe.";
+        }
+
+        // 2. add parameter blocks for keypoints of this keyframe to the global estimator (constant)
         okvis::PointMap landmarks;
         estimator_.getLandmarks(landmarks);
         // loop through std::map landmarks:
         for(auto const &ent1 : landmarks) {
-          if (!global_estimator_.isLandmarkAdded(ent1.second.id)) {
-            if(!global_estimator_.addLandmark(ent1.second.id, ent1.second.point)) {
-              LOG(WARNING) << "Failed to add landmark to global estimator!";
-            }
+          if(!estimator_.addLandmarkToGlobal(ent1.second.id, ent1.second.point)) {
+            // LOG(WARNING) << "Failed to add landmark to global estimator!";
           }
         }
+
+        // 3. add observations to the global estimator
 */
-        // add parmeter block with camera pose of this keyframe to the estimator (variable)
-        // get states (multiframe) from estimator_ and set them in global_estimator_
-        std::shared_ptr<okvis::MultiFrame> frame = estimator_.multiFrame(estimator_.currentFrameId());
-        okvis::kinematics::Transformation T_WS;
-        estimator_.get_T_WS(estimator_.currentFrameId(), T_WS);
-
-        if (!global_estimator_.addMultiframe(frame, T_WS)) {
-          LOG(WARNING) << "Failed to add state to global estimator! will drop multiframe.";
-        }
-
-        keyframe_counter_++;
-
         // debug: run optimization on first 20 keyframes:
         if (keyframe_counter_ == 20) {
-          global_estimator_.optimize(20, 2, true);
+          estimator_.optimizeGlobal(20, 2, true);
+          LOG(INFO) << "OKVIS pose: ";
+          LOG(INFO) << T_WS.T();
+          LOG(INFO) << "optimized pose: ";
+          estimator_.get_global_T_WS(estimator_.currentFrameId(), T_WS);
+          LOG(INFO) << T_WS.T();
+
         }
       }
 
@@ -800,7 +807,6 @@ void ThreadedKFVio::optimizationLoop() {
             estimator_.frameIdByAge(parameters_.optimization.numImuFrames))
             ->timestamp() - temporal_imu_data_overlap;
       }
-
       marginalizationTimer.start();
       estimator_.applyMarginalizationStrategy(
           parameters_.optimization.numKeyframes,
@@ -907,6 +913,9 @@ void ThreadedKFVio::publisherLoop() {
     if (fullStateCallback_ && !result.onlyPublishLandmarks)
       fullStateCallback_(result.stamp, result.T_WS, result.speedAndBiases,
                          result.omega_S);
+    if (fullStateCallbackWithReference_ && !result.onlyPublishLandmarks)
+      fullStateCallbackWithReference_(result.stamp, result.T_WS, result.speedAndBiases,
+                         result.omega_S, result.T_WS);
     if (fullStateCallbackWithExtrinsics_ && !result.onlyPublishLandmarks)
       fullStateCallbackWithExtrinsics_(result.stamp, result.T_WS,
                                        result.speedAndBiases, result.omega_S,

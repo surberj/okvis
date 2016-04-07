@@ -74,6 +74,11 @@ class VioInterface {
            const Eigen::Matrix<double, 9, 1> &,
            const Eigen::Matrix<double, 3, 1> &)> FullStateCallback;
   typedef std::function<
+      void(const okvis::Time &, const okvis::kinematics::Transformation &,
+           const Eigen::Matrix<double, 9, 1> &,
+           const Eigen::Matrix<double, 3, 1> &,
+           const okvis::kinematics::Transformation &)> FullStateCallbackWithReference;
+  typedef std::function<
       void(
           const okvis::Time &,
           const okvis::kinematics::Transformation &,
@@ -269,6 +274,17 @@ class VioInterface {
   virtual void setFullStateCallback(
       const FullStateCallback & fullStateCallback);
 
+  /// \brief Set the fullStateCallback to be called every time a new state is estimated.
+  ///        When an implementing class has an estimate, they can call:
+  ///        _fullStateCallback( stamp, T_w_vk, speedAndBiases, omega_S, T_w_vk_ref);
+  ///        where stamp is the timestamp
+  ///        and T_w_vk is the transformation (and uncertainty)
+  ///        and T_w_vk_ref is the reference transformation (and uncertainty) that
+  ///        transforms points from the vehicle frame to the world frame. speedAndBiases contain
+  ///        speed in world frame followed by gyro and acc biases. finally, omega_S is the rotation speed.
+  virtual void setFullStateCallbackWithReference(
+      const FullStateCallbackWithReference & fullStateCallbackWithReference);
+
   /// \brief Set the fullStateCallbackWithExtrinsics to be called every time a new state is estimated.
   ///        When an implementing class has an estimate, they can call:
   ///        _fullStateCallbackWithEctrinsics( stamp, T_w_vk, speedAndBiases, omega_S, vector_of_T_SCi);
@@ -310,6 +326,7 @@ class VioInterface {
 
   StateCallback stateCallback_; ///< State callback function.
   FullStateCallback fullStateCallback_; ///< Full state callback function.
+  FullStateCallbackWithReference fullStateCallbackWithReference_; ///< Full state callback function with Reference.
   FullStateCallbackWithExtrinsics fullStateCallbackWithExtrinsics_; ///< Full state and extrinsics callback function.
   LandmarksCallback landmarksCallback_; ///< Landmarks callback function.
   std::shared_ptr<std::fstream> csvImuFile_;  ///< IMU CSV file.

@@ -74,10 +74,11 @@ class PoseViewer
     showing_ = false;
   }
   // this we can register as a callback
-  void publishFullStateAsCallback(
+  void publishFullStateAsCallbackWithReference(
       const okvis::Time & /*t*/, const okvis::kinematics::Transformation & T_WS,
       const Eigen::Matrix<double, 9, 1> & speedAndBiases,
-      const Eigen::Matrix<double, 3, 1> & /*omega_S*/)
+      const Eigen::Matrix<double, 3, 1> & /*omega_S*/,
+      const okvis::kinematics::Transformation & T_WS_ref)
   {
 
     // just append the path
@@ -100,12 +101,33 @@ class PoseViewer
       _max_z = r[2];
     _scale = std::min(imageSize / (_max_x - _min_x), imageSize / (_max_y - _min_y));
 
+    // just append the reference path
+    Eigen::Vector3d r_ref = T_WS_ref.r();
+    Eigen::Matrix3d C_ref = T_WS_ref.C();
+    _path_ref.push_back(cv::Point2d(r_ref[0], r_ref[1]));
+    _heights_ref.push_back(r_ref[2]);
+    // maintain scaling
+    if (r_ref[0] - _frameScale < _min_x)
+      _min_x = r_ref[0] - _frameScale;
+    if (r_ref[1] - _frameScale < _min_y)
+      _min_y = r_ref[1] - _frameScale;
+    if (r_ref[2] < _min_z)
+      _min_z = r_ref[2];
+    if (r_ref[0] + _frameScale > _max_x)
+      _max_x = r_ref[0] + _frameScale;
+    if (r_ref[1] + _frameScale > _max_y)
+      _max_y = r_ref[1] + _frameScale;
+    if (r_ref[2] > _max_z)
+      _max_z = r_ref[2];
+    _scale = std::min(imageSize / (_max_x - _min_x), imageSize / (_max_y - _min_y));
+
     // draw it
     while (showing_) {
     }
     drawing_ = true;
     // erase
     _image.setTo(cv::Scalar(10, 10, 10));
+    // draw path
     drawPath();
     // draw axes
     Eigen::Vector3d e_x = C.col(0);
@@ -128,6 +150,30 @@ class PoseViewer
         convertToImageCoordinates(_path.back()),
         convertToImageCoordinates(
             _path.back() + cv::Point2d(e_z[0], e_z[1]) * _frameScale),
+        cv::Scalar(255, 0, 0), 1, CV_AA);
+    // draw reference path
+    drawRefPath();
+    // draw reference axes
+    Eigen::Vector3d e_x_ref = C_ref.col(0);
+    Eigen::Vector3d e_y_ref = C_ref.col(1);
+    Eigen::Vector3d e_z_ref = C_ref.col(2);
+    cv::line(
+        _image,
+        convertToImageCoordinates(_path_ref.back()),
+        convertToImageCoordinates(
+            _path_ref.back() + cv::Point2d(e_x_ref[0], e_x_ref[1]) * _frameScale),
+        cv::Scalar(255, 0, 255), 1, CV_AA);
+    cv::line(
+        _image,
+        convertToImageCoordinates(_path_ref.back()),
+        convertToImageCoordinates(
+            _path_ref.back() + cv::Point2d(e_y_ref[0], e_y_ref[1]) * _frameScale),
+        cv::Scalar(255, 255, 0), 1, CV_AA);
+    cv::line(
+        _image,
+        convertToImageCoordinates(_path_ref.back()),
+        convertToImageCoordinates(
+            _path_ref.back() + cv::Point2d(e_z_ref[0], e_z_ref[1]) * _frameScale),
         cv::Scalar(255, 0, 0), 1, CV_AA);
 
     // some text:
@@ -180,9 +226,34 @@ class PoseViewer
       i++;
     }
   }
+  void drawRefPath()
+  {
+    for (size_t i = 0; i + 1 < _path_ref.size(); ) {
+      cv::Point2d p0 = convertToImageCoordinates(_path_ref[i]);
+      cv::Point2d p1 = convertToImageCoordinates(_path_ref[i + 1]);
+      cv::Point2d diff = p1-p0;
+      if(diff.dot(diff)<2.0){
+        _path_ref.erase(_path_ref.begin() + i + 1);  // clean short segment
+        _heights_ref.erase(_heights_ref.begin() + i + 1);
+        continue;
+      }
+      double rel_height = (_heights_ref[i] - _min_z + _heights_ref[i + 1] - _min_z)
+                      * 0.5 / (_max_z - _min_z);
+      cv::line(
+          _image,
+          p0,
+          p1,
+          rel_height * cv::Scalar(255, 255, 0)
+              + (1.0 - rel_height) * cv::Scalar(0, 0, 255),
+          1, CV_AA);
+      i++;
+    }
+  }
   cv::Mat _image;
   std::vector<cv::Point2d> _path;
   std::vector<double> _heights;
+  std::vector<cv::Point2d> _path_ref;
+  std::vector<double> _heights_ref;
   double _scale = 1.0;
   double _min_x = -0.5;
   double _min_y = -0.5;
@@ -223,10 +294,11 @@ int main(int argc, char **argv)
   okvis::ThreadedKFVio okvis_estimator(parameters);
 
   PoseViewer poseViewer;
-  okvis_estimator.setFullStateCallback(
-      std::bind(&PoseViewer::publishFullStateAsCallback, &poseViewer,
+  okvis_estimator.setFullStateCallbackWithReference(
+      std::bind(&PoseViewer::publishFullStateAsCallbackWithReference, &poseViewer,
                 std::placeholders::_1, std::placeholders::_2,
-                std::placeholders::_3, std::placeholders::_4));
+                std::placeholders::_3, std::placeholders::_4,
+                std::placeholders::_5));
 
   okvis_estimator.setBlocking(true);
 

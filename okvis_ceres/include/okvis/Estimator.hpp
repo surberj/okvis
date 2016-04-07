@@ -102,6 +102,16 @@ class Estimator : public VioBackendInterface
   int addCamera(
       const okvis::ExtrinsicsEstimationParameters & extrinsicsEstimationParameters);
 
+  /// @name Sensor configuration related
+  ///@{
+  /**
+   * @brief Add a camera to the configuration. Sensors can only be added and never removed.
+   * @param extrinsicsEstimationParameters The parameters that tell how to estimate extrinsics.
+   * @return Index of new camera.
+   */
+  int addCameraToGlobal(
+      const okvis::ExtrinsicsEstimationParameters & extrinsicsEstimationParameters);
+
   /**
    * @brief Add an IMU to the configuration.
    * @warning Currently there is only one IMU supported.
@@ -139,7 +149,7 @@ class Estimator : public VioBackendInterface
    * @param T_WS transformation between multiframe and worldframe (prior for optimization)
    * @return True if successful.
    */
-  bool addMultiframe(okvis::MultiFramePtr multiFrame,
+  bool addMultiframeToGlobal(okvis::MultiFramePtr multiFrame,
                  okvis::kinematics::Transformation T_WS);
 
   /**
@@ -156,6 +166,15 @@ class Estimator : public VioBackendInterface
    * @return True if successful.
    */
   bool addLandmark(uint64_t landmarkId,
+                   const Eigen::Vector4d & landmark);
+
+  /**
+   * @brief Add a landmark to the global estimator.
+   * @param landmarkId ID of the new landmark.
+   * @param landmark Homogeneous coordinates of landmark in W-frame.
+   * @return True if successful.
+   */
+  bool addLandmarkToGlobal(uint64_t landmarkId,
                    const Eigen::Vector4d & landmark);
 
   /**
@@ -179,6 +198,17 @@ class Estimator : public VioBackendInterface
    * @return True if observation was present and successfully removed.
    */
   bool removeObservation(uint64_t landmarkId, uint64_t poseId,  size_t camIdx,
+                         size_t keypointIdx);
+
+  /**
+   * @brief Remove an observation from a landmark, if available.
+   * @param landmarkId ID of landmark.
+   * @param poseId ID of pose where the landmark was observed.
+   * @param camIdx ID of camera frame where the landmark was observed.
+   * @param keypointIdx ID of keypoint corresponding to the landmark.
+   * @return True if observation was present and successfully removed.
+   */
+  bool removeObservationFromGlobal(uint64_t landmarkId, uint64_t poseId,  size_t camIdx,
                          size_t keypointIdx);
 
   /**
@@ -209,6 +239,14 @@ class Estimator : public VioBackendInterface
    * @param[in] verbose Print out optimization progress and result, if true.
    */
   void optimize(size_t numIter, size_t numThreads = 1, bool verbose = false);
+
+  /**
+   * @brief Start global ceres optimization.
+   * @param[in] numIter Maximum number of iterations.
+   * @param[in] numThreads Number of threads.
+   * @param[in] verbose Print out optimization progress and result, if true.
+   */
+  void optimizeGlobal(size_t numIter, size_t numThreads = 1, bool verbose = false);
 
   /**
    * @brief Set a time limit for the optimization process.
@@ -282,6 +320,14 @@ class Estimator : public VioBackendInterface
    * @return True if successful.
    */
   bool get_T_WS(uint64_t poseId, okvis::kinematics::Transformation & T_WS) const;
+
+  /**
+   * @brief Get pose for a given pose ID.
+   * @param[in]  poseId ID of desired pose.
+   * @param[out] T_WS Homogeneous transformation of this pose.
+   * @return True if successful.
+   */
+  bool get_global_T_WS(uint64_t poseId, okvis::kinematics::Transformation & T_WS) const;
 
   // the following access the optimization graph, so are not very fast.
   // Feel free to implement caching for them...
@@ -374,6 +420,18 @@ class Estimator : public VioBackendInterface
    */
   bool set_T_WS(uint64_t poseId, const okvis::kinematics::Transformation & T_WS);
 
+  ///@}
+  /// @name Setters
+  ///@{
+  /**
+   * @brief Set pose for a given pose ID.
+   * @warning This accesses the optimization graph, so not very fast.
+   * @param[in] poseId ID of the pose that should be changed.
+   * @param[in] T_WS new homogeneous transformation.
+   * @return True if successful.
+   */
+  bool set_T_WS_InGlobalEstimator(uint64_t poseId, const okvis::kinematics::Transformation & T_WS);
+
   /**
    * @brief Set the speeds and IMU biases for a given pose ID.
    * @warning This accesses the optimization graph, so not very fast.
@@ -428,6 +486,13 @@ class Estimator : public VioBackendInterface
    * @return True if successful.
    */
   bool removeObservation(::ceres::ResidualBlockId residualBlockId);
+
+  /**
+   * @brief Remove an observation from a landmark.
+   * @param residualBlockId Residual ID for this landmark.
+   * @return True if successful.
+   */
+  bool removeObservationFromGlobal(::ceres::ResidualBlockId residualBlockId);
 
   /// \brief StateInfo This configures the state vector ordering
   struct StateInfo
@@ -520,6 +585,14 @@ class Estimator : public VioBackendInterface
   bool getGlobalStateParameterBlockAs(uint64_t poseId, int stateType,
                                       PARAMETER_BLOCK_T & stateParameterBlock) const;
   template<class PARAMETER_BLOCK_T>
+  bool getGlobalStateEstimateInGlobalEstimatorAs(uint64_t poseId, int stateType,
+                                typename PARAMETER_BLOCK_T::estimate_t & state) const;
+  bool getGlobalStateParameterBlockInGlobalEstimatorPtr(uint64_t poseId, int stateType,
+                                    std::shared_ptr<ceres::ParameterBlock>& stateParameterBlockPtr) const;
+  template<class PARAMETER_BLOCK_T>
+  bool getGlobalStateParameterBlockInGlobalEstimatorAs(uint64_t poseId, int stateType,
+                                      PARAMETER_BLOCK_T & stateParameterBlock) const;
+  template<class PARAMETER_BLOCK_T>
   bool getGlobalStateEstimateAs(uint64_t poseId, int stateType,
                                 typename PARAMETER_BLOCK_T::estimate_t & state) const;
 
@@ -540,6 +613,12 @@ class Estimator : public VioBackendInterface
                                 const typename PARAMETER_BLOCK_T::estimate_t & state);
   template<class PARAMETER_BLOCK_T>
   bool setSensorStateEstimateAs(uint64_t poseId, int sensorIdx, int sensorType,
+                                int stateType, const typename PARAMETER_BLOCK_T::estimate_t & state);
+  template<class PARAMETER_BLOCK_T>
+  bool setGlobalStateEstimateInGlobalEstimatorAs(uint64_t poseId, int stateType,
+                                const typename PARAMETER_BLOCK_T::estimate_t & state);
+  template<class PARAMETER_BLOCK_T>
+  bool setSensorStateEstimateInGlobalEstimatorAs(uint64_t poseId, int sensorIdx, int sensorType,
                                 int stateType, const typename PARAMETER_BLOCK_T::estimate_t & state);
 
   // the following are just fixed-size containers for related parameterBlockIds:
@@ -574,6 +653,8 @@ class Estimator : public VioBackendInterface
   // the following are updated after the optimization
   okvis::PointMap landmarksMap_; ///< Contains all the current landmarks (synched after optimisation).
   mutable std::mutex statesMutex_;  ///< Regulate access of landmarksMap_.
+  okvis::PointMap globallandmarksMap_; ///< Contains all the current landmarks in the global estimator (synched after optimisation).
+  mutable std::mutex globalstatesMutex_;  ///< Regulate access of the globallandmarksMap_.
 
   // parameters
   std::vector<okvis::ExtrinsicsEstimationParameters,
@@ -586,7 +667,9 @@ class Estimator : public VioBackendInterface
 
   // the marginalized error term
   std::shared_ptr<ceres::MarginalizationError> marginalizationErrorPtr_; ///< The marginalisation class
+  std::shared_ptr<ceres::MarginalizationError> globalmarginalizationErrorPtr_; ///< The marginalisation class
   ::ceres::ResidualBlockId marginalizationResidualId_; ///< Remembers the marginalisation object's Id
+  ::ceres::ResidualBlockId globalmarginalizationResidualId_; ///< Remembers the marginalisation object's Id
 
   // ceres iteration callback object
   std::unique_ptr<okvis::ceres::CeresIterationCallback> ceresCallback_; ///< Maybe there was a callback registered, store it here.
