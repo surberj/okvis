@@ -295,6 +295,7 @@ bool Map::addParameterBlock(
 
   // check Id availability
   if (parameterBlockExists(parameterBlock->id())) {
+    // LOG(INFO) << "parameterBlock already exists.";
     return false;
   }
 

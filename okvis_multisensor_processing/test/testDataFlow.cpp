@@ -45,6 +45,8 @@ TEST(OkvisVioInterfaces, testDataFlow)
     .Times(1);
   EXPECT_CALL(dummy, addStates(_,_,_))
     .Times(Between(5, 10));
+    EXPECT_CALL(dummy, addStatesToGlobal(_,_,_))
+    .Times(Between(5, 10));
   EXPECT_CALL(dummy, applyMarginalizationStrategy(_,_,_))
     .Times(Between(5,10));
   EXPECT_CALL(dummy, setOptimizationTimeLimit(_,_))
@@ -60,6 +62,8 @@ TEST(OkvisVioInterfaces, testDataFlow)
   ON_CALL(dummy, numFrames())
     .WillByDefault(Return(1));
   ON_CALL(dummy, addStates(_,_,_))
+    .WillByDefault(Return(true));
+  ON_CALL(dummy, addStatesToGlobal(_,_,_))
     .WillByDefault(Return(true));
   // to circumvent segfault
   ON_CALL(dummy, multiFrame(_))

@@ -144,6 +144,17 @@ class Estimator : public VioBackendInterface
                  bool asKeyframe);
 
   /**
+   * @brief Add a pose to the state of the global estimator.
+   * @param multiFrame Matched multiFrame.
+   * @param imuMeasurements IMU measurements from last state to new one.
+   * @param asKeyframe Is this new frame a keyframe?
+   * @return True if successful.
+   */
+  bool addStatesToGlobal(okvis::MultiFramePtr multiFrame,
+                 const okvis::ImuMeasurementDeque & imuMeasurements,
+                 bool asKeyframe);
+
+  /**
    * @brief Add a pose to the state.
    * @param multiFrame Matched multiFrame.
    * @param T_WS transformation between multiframe and worldframe (prior for optimization)
@@ -189,6 +200,20 @@ class Estimator : public VioBackendInterface
   template<class GEOMETRY_TYPE>
   ::ceres::ResidualBlockId addObservation(uint64_t landmarkId, uint64_t poseId,
                                           size_t camIdx, size_t keypointIdx);
+
+  /**
+   * @brief Add an observation to a landmark in global estimator.
+   * \tparam GEOMETRY_TYPE The camera geometry type for this observation.
+   * @param landmarkId ID of landmark.
+   * @param poseId ID of pose where the landmark was observed.
+   * @param camIdx ID of camera frame where the landmark was observed.
+   * @param keypointIdx ID of keypoint corresponding to the landmark.
+   * @return Residual block ID for that observation.
+   */
+  template<class GEOMETRY_TYPE>
+  ::ceres::ResidualBlockId addObservationToGlobal(uint64_t landmarkId, uint64_t poseId,
+                                          size_t camIdx, size_t keypointIdx);
+
   /**
    * @brief Remove an observation from a landmark, if available.
    * @param landmarkId ID of landmark.
@@ -220,6 +245,17 @@ class Estimator : public VioBackendInterface
    * @return True if successful.
    */
   bool applyMarginalizationStrategy(size_t numKeyframes, size_t numImuFrames,
+                                    okvis::MapPointVector& removedLandmarks);
+
+  /**
+   * @brief Applies the dropping/marginalization strategy to the global estimator.
+   *        The new number of frames in the window will be numKeyframes+numImuFrames.
+   * @param numKeyframes Number of keyframes.
+   * @param numImuFrames Number of frames in IMU window.
+   * @param removedLandmarks Get the landmarks that were removed by this operation.
+   * @return True if successful.
+   */
+  bool applyGlobalMarginalizationStrategy(size_t numKeyframes, size_t numImuFrames,
                                     okvis::MapPointVector& removedLandmarks);
 
   /**
@@ -265,6 +301,18 @@ class Estimator : public VioBackendInterface
   bool isLandmarkAdded(uint64_t landmarkId) const {
     bool isAdded = landmarksMap_.find(landmarkId) != landmarksMap_.end();
     OKVIS_ASSERT_TRUE_DBG(Exception, isAdded == mapPtr_->parameterBlockExists(landmarkId),
+                   "id="<<landmarkId<<" inconsistent. isAdded = " << isAdded);
+    return isAdded;
+  }
+
+  /**
+   * @brief Checks whether the landmark is added to the estimator.
+   * @param landmarkId The ID.
+   * @return True if added.
+   */
+  bool isLandmarkAddedToGlobal(uint64_t landmarkId) const {
+    bool isAdded = globallandmarksMap_.find(landmarkId) != globallandmarksMap_.end();
+    OKVIS_ASSERT_TRUE_DBG(Exception, isAdded == globalmapPtr_->parameterBlockExists(landmarkId),
                    "id="<<landmarkId<<" inconsistent. isAdded = " << isAdded);
     return isAdded;
   }
@@ -443,6 +491,16 @@ class Estimator : public VioBackendInterface
   bool setSpeedAndBias(uint64_t poseId, size_t imuIdx, const okvis::SpeedAndBias & speedAndBias);
 
   /**
+   * @brief Set the speeds and IMU biases for a given pose ID.
+   * @warning This accesses the optimization graph, so not very fast.
+   * @param[in] poseId ID of the pose to change corresponding speeds and biases for.
+   * @param[in] imuIdx index of IMU to get biases for. As only one IMU is supported this is always 0.
+   * @param[in] speedAndBias new speeds and biases.
+   * @return True if successful.
+   */
+  bool setSpeedAndBiasInGlobalEstimator(uint64_t poseId, size_t imuIdx, const okvis::SpeedAndBias & speedAndBias);
+
+  /**
    * @brief Set the transformation from sensor to camera frame for a given pose ID.
    * @warning This accesses the optimization graph, so not very fast.
    * @param[in] poseId ID of the pose to change corresponding camera states for.
@@ -453,11 +511,28 @@ class Estimator : public VioBackendInterface
   bool setCameraSensorStates(uint64_t poseId, size_t cameraIdx,
                               const okvis::kinematics::Transformation & T_SCi);
 
+  /**
+   * @brief Set the transformation from sensor to camera frame for a given pose ID.
+   * @warning This accesses the optimization graph, so not very fast.
+   * @param[in] poseId ID of the pose to change corresponding camera states for.
+   * @param[in] cameraIdx Index of camera to set state for.
+   * @param[in] T_SCi new homogeneous transformation from sensor (IMU) to camera frame.
+   * @return True if successful.
+   */
+  bool setCameraSensorStatesInGlobalEstimator(uint64_t poseId, size_t cameraIdx,
+                              const okvis::kinematics::Transformation & T_SCi);
+
   /// @brief Set the homogeneous coordinates for a landmark.
   /// @param[in] landmarkId The landmark ID.
   /// @param[in] landmark Homogeneous coordinates of landmark in W-frame.
   /// @return True if successful.
   bool setLandmark(uint64_t landmarkId, const Eigen::Vector4d & landmark);
+
+  /// @brief Set the homogeneous coordinates for a landmark.
+  /// @param[in] landmarkId The landmark ID.
+  /// @param[in] landmark Homogeneous coordinates of landmark in W-frame.
+  /// @return True if successful.
+  bool setLandmarkInGlobalEstimator(uint64_t landmarkId, const Eigen::Vector4d & landmark);
 
   /// @brief Set the landmark initialization state.
   /// @param[in] landmarkId The landmark ID.
@@ -643,6 +718,7 @@ class Estimator : public VioBackendInterface
   std::map<uint64_t, States> statesMap_; ///< Buffer for currently considered states.
   std::map<uint64_t, States> globalstatesMap_; ///< Buffer for currently considered states.
   std::map<uint64_t, okvis::MultiFramePtr> multiFramePtrMap_; ///< remember all needed okvis::MultiFrame.
+  std::map<uint64_t, okvis::MultiFramePtr> globalmultiFramePtrMap_; ///< remember all needed okvis::MultiFrame.
   std::shared_ptr<okvis::ceres::Map> mapPtr_; ///< The underlying okvis::Map.
   std::shared_ptr<okvis::ceres::Map> globalmapPtr_; ///< The underlying global okvis::Map.
 

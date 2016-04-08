@@ -122,6 +122,17 @@ class VioBackendInterface {
                          bool asKeyframe) = 0;
 
   /**
+   * @brief Add a pose to the state of the global estimator.
+   * @param multiFrame Matched multiFrame.
+   * @param imuMeasurements IMU measurements from last state to new one.
+   * @param asKeyframe Is this new frame a keyframe?
+   * @return True if successful.
+   */
+  virtual bool addStatesToGlobal(okvis::MultiFramePtr multiFrame,
+                         const okvis::ImuMeasurementDeque & imuMeasurements,
+                         bool asKeyframe) = 0;
+
+  /**
    * @brief Add a landmark.
    * @param landmarkId ID of the new landmark.
    * @param landmark Homogeneous coordinates of landmark in W-frame.

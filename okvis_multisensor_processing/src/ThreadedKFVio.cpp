@@ -440,7 +440,7 @@ void ThreadedKFVio::frameConsumerLoop(size_t cameraIndex) {
 
       if (frameSynchronizer_.detectionCompletedForAllCameras(
           multiFrame->id())) {
-//        LOG(INFO) << "detection completed for multiframe with id "<< multi_frame->id();
+//        LOG(INFO) << "detection completed for multiframe with id "<< multiframe->id();
         push = true;
       }
     }  // unlocking frame synchronizer
@@ -510,7 +510,8 @@ void ThreadedKFVio::matchingLoop() {
       addStateTimer.start();
       okvis::Time t0Matching = okvis::Time::now();
       bool asKeyframe = false;
-      if (estimator_.addStates(frame, imuData, asKeyframe)) {
+      if (estimator_.addStates(frame, imuData, asKeyframe) && 
+          estimator_.addStatesToGlobal(frame, imuData, asKeyframe)) {
         lastAddedStateTimestamp_ = frame->timestamp();
         addStateTimer.stop();
       } else {
@@ -759,44 +760,51 @@ void ThreadedKFVio::optimizationLoop() {
 
       optimizationTimer.stop();
 
-      // add optimized multiframes to the global estimator if the newest frame is a keyframe
+      // add estimates to global estimator:
+      // TODO: think about which states we want to pass to the global estimator.
+      // Probably the oldest marginalized keyframe is the one we would like to pass
+      // to the global estimator, not?
+      {
+        // get infos from estimator
+        std::lock_guard<std::mutex> lock(lastState_mutex_);
+        estimator_.get_T_WS(estimator_.currentFrameId(), lastOptimized_T_WS_);
+        estimator_.getSpeedAndBias(frame_pairs->id(), 0,
+                                   lastOptimizedSpeedAndBiases_);
+
+        // update the poses and speedandbiases within the global estimator
+        lastOptimized_T_WS_ref_ = T_GW_*lastOptimized_T_WS_;
+        estimator_.set_T_WS_InGlobalEstimator(estimator_.currentFrameId(), lastOptimized_T_WS_ref_);
+        estimator_.setSpeedAndBiasInGlobalEstimator(estimator_.currentFrameId(), 0, lastOptimizedSpeedAndBiases_);
+
+        // update the landmark positions within the global estimator
+        // estimator_.getLandmarks(result.landmarksVector);
+        okvis::PointMap landmarks;
+        estimator_.getLandmarks(landmarks);
+        for(auto const &ent1 : landmarks) {
+          if(!estimator_.setLandmarkInGlobalEstimator(ent1.second.id, ent1.second.point)) {
+            LOG(WARNING) << "Failed to update landmark position in global estimator!";
+          }
+        }
+      }
+
+      // DEBUG:
       if (estimator_.isKeyframe(estimator_.currentFrameId()) && estimator_.currentFrameId()>0) {
         keyframe_counter_++;
         LOG(WARNING) << "add keyframe number " << keyframe_counter_ << " to global estimator";
-
-        okvis::kinematics::Transformation T_WS;
-        estimator_.get_T_WS(estimator_.currentFrameId(), T_WS);
-        estimator_.set_T_WS_InGlobalEstimator(estimator_.currentFrameId(), T_WS);
-
-/*        // 1. add parmeter block with camera pose of this keyframe to the estimator (variable)
-        std::shared_ptr<okvis::MultiFrame> frame = estimator_.multiFrame(estimator_.currentFrameId());
-        okvis::kinematics::Transformation T_WS;
-        estimator_.get_T_WS(estimator_.currentFrameId(), T_WS);
-        if (!estimator_.addMultiframeToGlobal(frame, T_WS)) {
-          LOG(WARNING) << "Failed to add state to global estimator! will drop multiframe.";
-        }
-
-        // 2. add parameter blocks for keypoints of this keyframe to the global estimator (constant)
-        okvis::PointMap landmarks;
-        estimator_.getLandmarks(landmarks);
-        // loop through std::map landmarks:
-        for(auto const &ent1 : landmarks) {
-          if(!estimator_.addLandmarkToGlobal(ent1.second.id, ent1.second.point)) {
-            // LOG(WARNING) << "Failed to add landmark to global estimator!";
-          }
-        }
-
-        // 3. add observations to the global estimator
-*/
-        // debug: run optimization on first 20 keyframes:
-        if (keyframe_counter_ == 20) {
+        // debug: run optimization every N keyframes:
+        int N = 90;
+        if (keyframe_counter_ % N == 0) {
           estimator_.optimizeGlobal(20, 2, true);
+          estimator_.get_global_T_WS(estimator_.currentFrameId(), lastOptimized_T_WS_ref_);
           LOG(INFO) << "OKVIS pose: ";
-          LOG(INFO) << T_WS.T();
+          LOG(INFO) << lastOptimized_T_WS_.T();
           LOG(INFO) << "optimized pose: ";
-          estimator_.get_global_T_WS(estimator_.currentFrameId(), T_WS);
-          LOG(INFO) << T_WS.T();
+          LOG(INFO) << lastOptimized_T_WS_ref_.T();
 
+          // "global correction measurement"
+          okvis::kinematics::Transformation T_GS = lastOptimized_T_WS_ref_;
+          // "baseframe transformation" for DRIFT correction
+          T_GW_ = T_GS*lastOptimized_T_WS_.inverse();
         }
       }
 
@@ -811,6 +819,8 @@ void ThreadedKFVio::optimizationLoop() {
       estimator_.applyMarginalizationStrategy(
           parameters_.optimization.numKeyframes,
           parameters_.optimization.numImuFrames, result.transferredLandmarks);
+      //estimator_.applyGlobalMarginalizationStrategy(10000, 10,
+      //    global_result.transferredLandmarks);
       marginalizationTimer.stop();
       afterOptimizationTimer.start();
 
@@ -878,6 +888,7 @@ void ThreadedKFVio::optimizationLoop() {
 
       optimizationDone_ = true;
     }  // unlock mutex
+//    LOG(INFO) << "optimization and marginalization done for frame " << estimator_.currentFrameId();
     optimizationNotification_.notify_all();
 
     if (!parameters_.publishing.publishImuPropagatedState) {
@@ -915,7 +926,7 @@ void ThreadedKFVio::publisherLoop() {
                          result.omega_S);
     if (fullStateCallbackWithReference_ && !result.onlyPublishLandmarks)
       fullStateCallbackWithReference_(result.stamp, result.T_WS, result.speedAndBiases,
-                         result.omega_S, result.T_WS);
+                         result.omega_S, lastOptimized_T_WS_ref_);
     if (fullStateCallbackWithExtrinsics_ && !result.onlyPublishLandmarks)
       fullStateCallbackWithExtrinsics_(result.stamp, result.T_WS,
                                        result.speedAndBiases, result.omega_S,

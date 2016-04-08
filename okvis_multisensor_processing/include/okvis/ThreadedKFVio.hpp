@@ -319,6 +319,8 @@ class ThreadedKFVio : public VioInterface {
   /// \brief Resulting pose of the last optimization
   /// \warning Lock lastState_mutex_.
   okvis::kinematics::Transformation lastOptimized_T_WS_;
+  okvis::kinematics::Transformation lastOptimized_T_WS_ref_;
+  okvis::kinematics::Transformation T_GW_; // baseframe transformation
   /// \brief Resulting speeds and IMU biases after last optimization.
   /// \warning Lock lastState_mutex_.
   okvis::SpeedAndBias lastOptimizedSpeedAndBiases_;

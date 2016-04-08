@@ -394,9 +394,12 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setBestMatch(
     }
 
     // check and adapt landmark status
-    bool insertA = lmIdA == 0;
-    bool insertB = lmIdB == 0;
+    bool insertA = lmIdA == 0; //true if landmarkID is NOT in frame A
+    bool insertB = lmIdB == 0; //true if landmarkID is NOT in frame B
+    bool globalinsertA = lmIdA == 0; //true if landmarkID is NOT in frame A
+    bool globalinsertB = lmIdB == 0; //true if landmarkID is NOT in frame B
     bool insertHomogeneousPointParameterBlock = false;
+    bool globalinsertHomogeneousPointParameterBlock = false;
     uint64_t lmId = 0;  // 0 just to avoid warning
     if (insertA && insertB) {
       // ok, we need to assign a new Id...
@@ -407,32 +410,54 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setBestMatch(
       lmIdB = lmId;
       // and add it to the graph
       insertHomogeneousPointParameterBlock = true;
+      globalinsertHomogeneousPointParameterBlock = true;
     } else {
-      if (!insertA) {
+      if (!insertA) { // landmarkID is in frame A
         lmId = lmIdA;
+        // insert parameter block if point is not present in estimator
         if (!estimator_->isLandmarkAdded(lmId)) {
           // add landmark and observation to the graph
           insertHomogeneousPointParameterBlock = true;
           insertA = true;
         }
+        // insert parameter block if point is not present in estimator
+        if (!estimator_->isLandmarkAddedToGlobal(lmId)) {
+          // add landmark and observation to the graph
+          globalinsertHomogeneousPointParameterBlock = true;
+          globalinsertA = true;
+        }
       }
-      if (!insertB) {
+      if (!insertB) { //landmarkID is in frame B
         lmId = lmIdB;
+        // insert parameter block if point is not present in estimator
         if (!estimator_->isLandmarkAdded(lmId)) {
           // add landmark and observation to the graph
           insertHomogeneousPointParameterBlock = true;
           insertB = true;
         }
+        // insert parameter block if point is not present in estimator
+        if (!estimator_->isLandmarkAddedToGlobal(lmId)) {
+          // add landmark and observation to the graph
+          globalinsertHomogeneousPointParameterBlock = true;
+          globalinsertB = true;
+        }
       }
     }
     // add landmark to graph if necessary
-    if (insertHomogeneousPointParameterBlock) {
-      estimator_->addLandmark(lmId, T_WCa_ * hP_Ca);
-      OKVIS_ASSERT_TRUE(Exception, estimator_->isLandmarkAdded(lmId),
+    if (insertHomogeneousPointParameterBlock || globalinsertHomogeneousPointParameterBlock) {
+      if (insertHomogeneousPointParameterBlock) {
+        estimator_->addLandmark(lmId, T_WCa_ * hP_Ca);
+        OKVIS_ASSERT_TRUE(Exception, estimator_->isLandmarkAdded(lmId),
                         lmId<<" not added, bug");
-      estimator_->setLandmarkInitialized(lmId, canBeInitialized);
+        estimator_->setLandmarkInitialized(lmId, canBeInitialized);
+      }
+      if (globalinsertHomogeneousPointParameterBlock) {
+        estimator_->addLandmarkToGlobal(lmId, T_WCa_ * hP_Ca);
+        OKVIS_ASSERT_TRUE(Exception, estimator_->isLandmarkAddedToGlobal(lmId),
+                        lmId<<" not added, bug");
+        estimator_->setLandmarkInitialized(lmId, canBeInitialized);
+      }
     } else {
-
       // update initialization status, set better estimate, if possible
       if (canBeInitialized) {
         estimator_->setLandmarkInitialized(lmId, true);
@@ -457,6 +482,21 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setBestMatch(
       estimator_->addObservation<camera_geometry_t>(lmId, mfIdA_, camIdA_,
                                                     indexA);
     }
+    if (globalinsertA
+        && landmark.observations.find(
+            okvis::KeypointIdentifier(mfIdA_, camIdA_, indexA))
+            == landmark.observations.end()) {  // ensure no double observations...
+            // TODO hp_Sa NOT USED!
+      Eigen::Vector4d hp_Sa(T_SaCa_ * hP_Ca);
+      hp_Sa.normalize();
+      frameA_->setLandmarkId(camIdA_, indexA, lmId);
+      lmIdA = lmId;
+      // initialize in graph
+      OKVIS_ASSERT_TRUE(Exception, estimator_->isLandmarkAddedToGlobal(lmId),
+                        "landmark id=" << lmId<<" not added");
+      estimator_->addObservationToGlobal<camera_geometry_t>(lmId, mfIdA_, camIdA_,
+                                                    indexA);
+    }
 
     // in image B
     if (insertB
@@ -471,6 +511,20 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setBestMatch(
       OKVIS_ASSERT_TRUE(Exception, estimator_->isLandmarkAdded(lmId),
                         "landmark " << lmId << " not added");
       estimator_->addObservation<camera_geometry_t>(lmId, mfIdB_, camIdB_,
+                                                    indexB);
+    }
+    if (globalinsertB
+        && landmark.observations.find(
+            okvis::KeypointIdentifier(mfIdB_, camIdB_, indexB))
+            == landmark.observations.end()) {  // ensure no double observations...
+      Eigen::Vector4d hp_Sb(T_SbCb_ * T_CbCa_ * hP_Ca);
+      hp_Sb.normalize();
+      frameB_->setLandmarkId(camIdB_, indexB, lmId);
+      lmIdB = lmId;
+      // initialize in graph
+      OKVIS_ASSERT_TRUE(Exception, estimator_->isLandmarkAddedToGlobal(lmId),
+                        "landmark " << lmId << " not added");
+      estimator_->addObservationToGlobal<camera_geometry_t>(lmId, mfIdB_, camIdB_,
                                                     indexB);
     }
 
@@ -519,6 +573,8 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setBestMatch(
       OKVIS_ASSERT_TRUE(Exception, estimator_->isLandmarkAdded(lmIdB),
                         "not added");
       estimator_->addObservation<camera_geometry_t>(lmIdB, mfIdB_, camIdB_,
+                                                    indexB);
+      estimator_->addObservationToGlobal<camera_geometry_t>(lmIdB, mfIdB_, camIdB_,
                                                     indexB);
     }
 

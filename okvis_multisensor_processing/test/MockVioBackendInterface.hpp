@@ -54,6 +54,8 @@ class MockVioBackendInterface : public VioBackendInterface {
 
   MOCK_METHOD3(addStates,
                bool(okvis::MultiFramePtr multiFrame, const okvis::ImuMeasurementDeque & imuMeasurements, bool asKeyframe));
+  MOCK_METHOD3(addStatesToGlobal,
+               bool(okvis::MultiFramePtr multiFrame, const okvis::ImuMeasurementDeque & imuMeasurements, bool asKeyframe));
 
   MOCK_METHOD2(addLandmark,
       bool(uint64_t landmarkId, const Eigen::Vector4d & landmark));

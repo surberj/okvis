@@ -71,7 +71,7 @@ template<class GEOMETRY_TYPE>
               new ceres::ReprojectionError<GEOMETRY_TYPE>(
                   multiFramePtr->template geometryAs<GEOMETRY_TYPE>(camIdx),
                   camIdx, measurement, information));
-
+//  LOG(INFO) << "add residual block to estimator.";
   ::ceres::ResidualBlockId retVal = mapPtr_->addResidualBlock(
       reprojectionError,
       cauchyLossFunctionPtr_ ? cauchyLossFunctionPtr_.get() : NULL,
@@ -80,13 +80,63 @@ template<class GEOMETRY_TYPE>
       mapPtr_->parameterBlockPtr(
           statesMap_.at(poseId).sensors.at(SensorStates::Camera).at(camIdx).at(
               CameraSensorStates::T_SCi).id));
-
+//  LOG(INFO) << "add residual block to estimator succeded.";
   // remember
   landmarksMap_.at(landmarkId).observations.insert(
       std::pair<okvis::KeypointIdentifier, uint64_t>(
           kid, reinterpret_cast<uint64_t>(retVal)));
-
   return retVal;
+}
+
+// Add an observation to a landmark in global estimator.
+template<class GEOMETRY_TYPE>
+::ceres::ResidualBlockId Estimator::addObservationToGlobal(uint64_t landmarkId,
+                                                   uint64_t poseId,
+                                                   size_t camIdx,
+                                                   size_t keypointIdx) {
+  OKVIS_ASSERT_TRUE_DBG(Exception, isLandmarkAddedToGlobal(landmarkId),
+                        "landmark not added to global estimator");
+
+  // avoid double observations
+  okvis::KeypointIdentifier kid(poseId, camIdx, keypointIdx);
+  if (globallandmarksMap_.at(landmarkId).observations.find(kid)
+      != globallandmarksMap_.at(landmarkId).observations.end()) {
+    return NULL;
+  }
+
+  // get the keypoint measurement
+  okvis::MultiFramePtr multiFramePtr = multiFramePtrMap_.at(poseId);
+  Eigen::Vector2d measurement;
+  multiFramePtr->getKeypoint(camIdx, keypointIdx, measurement);
+  Eigen::Matrix2d information = Eigen::Matrix2d::Identity();
+  double size = 1.0;
+  multiFramePtr->getKeypointSize(camIdx, keypointIdx, size);
+  information *= 64.0 / (size * size);
+
+  // create error term
+  std::shared_ptr < ceres::ReprojectionError
+      < GEOMETRY_TYPE
+          >> reprojectionError(
+              new ceres::ReprojectionError<GEOMETRY_TYPE>(
+                  multiFramePtr->template geometryAs<GEOMETRY_TYPE>(camIdx),
+                  camIdx, measurement, information));
+//  LOG(INFO) << "add residual block to global estimator.";
+  ::ceres::ResidualBlockId globalretVal = globalmapPtr_->addResidualBlock(
+      reprojectionError,
+      cauchyLossFunctionPtr_ ? cauchyLossFunctionPtr_.get() : NULL,
+      globalmapPtr_->parameterBlockPtr(poseId),
+      globalmapPtr_->parameterBlockPtr(landmarkId),
+      globalmapPtr_->parameterBlockPtr(
+          globalstatesMap_.at(poseId).sensors.at(SensorStates::Camera).at(camIdx).at(
+              CameraSensorStates::T_SCi).id));
+//  LOG(INFO) << "add residual block to global estimator succeded.";
+
+  // remember
+  globallandmarksMap_.at(landmarkId).observations.insert(
+      std::pair<okvis::KeypointIdentifier, uint64_t>(
+          kid, reinterpret_cast<uint64_t>(globalretVal)));
+
+  return globalretVal;
 }
 
 }  // namespace okvis
