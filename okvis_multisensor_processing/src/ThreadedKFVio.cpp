@@ -792,7 +792,7 @@ void ThreadedKFVio::optimizationLoop() {
         keyframe_counter_++;
         LOG(WARNING) << "add keyframe number " << keyframe_counter_ << " to global estimator";
         // debug: run optimization every N keyframes:
-        int N = 90;
+        int N = 20;
         if (keyframe_counter_ % N == 0) {
           estimator_.optimizeGlobal(20, 2, true);
           estimator_.get_global_T_WS(estimator_.currentFrameId(), lastOptimized_T_WS_ref_);

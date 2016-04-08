@@ -71,7 +71,7 @@ template<class GEOMETRY_TYPE>
               new ceres::ReprojectionError<GEOMETRY_TYPE>(
                   multiFramePtr->template geometryAs<GEOMETRY_TYPE>(camIdx),
                   camIdx, measurement, information));
-//  LOG(INFO) << "add residual block to estimator.";
+
   ::ceres::ResidualBlockId retVal = mapPtr_->addResidualBlock(
       reprojectionError,
       cauchyLossFunctionPtr_ ? cauchyLossFunctionPtr_.get() : NULL,
@@ -80,7 +80,7 @@ template<class GEOMETRY_TYPE>
       mapPtr_->parameterBlockPtr(
           statesMap_.at(poseId).sensors.at(SensorStates::Camera).at(camIdx).at(
               CameraSensorStates::T_SCi).id));
-//  LOG(INFO) << "add residual block to estimator succeded.";
+
   // remember
   landmarksMap_.at(landmarkId).observations.insert(
       std::pair<okvis::KeypointIdentifier, uint64_t>(
@@ -120,7 +120,7 @@ template<class GEOMETRY_TYPE>
               new ceres::ReprojectionError<GEOMETRY_TYPE>(
                   multiFramePtr->template geometryAs<GEOMETRY_TYPE>(camIdx),
                   camIdx, measurement, information));
-//  LOG(INFO) << "add residual block to global estimator.";
+
   ::ceres::ResidualBlockId globalretVal = globalmapPtr_->addResidualBlock(
       reprojectionError,
       cauchyLossFunctionPtr_ ? cauchyLossFunctionPtr_.get() : NULL,
@@ -129,7 +129,6 @@ template<class GEOMETRY_TYPE>
       globalmapPtr_->parameterBlockPtr(
           globalstatesMap_.at(poseId).sensors.at(SensorStates::Camera).at(camIdx).at(
               CameraSensorStates::T_SCi).id));
-//  LOG(INFO) << "add residual block to global estimator succeded.";
 
   // remember
   globallandmarksMap_.at(landmarkId).observations.insert(

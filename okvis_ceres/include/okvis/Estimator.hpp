@@ -102,16 +102,6 @@ class Estimator : public VioBackendInterface
   int addCamera(
       const okvis::ExtrinsicsEstimationParameters & extrinsicsEstimationParameters);
 
-  /// @name Sensor configuration related
-  ///@{
-  /**
-   * @brief Add a camera to the configuration. Sensors can only be added and never removed.
-   * @param extrinsicsEstimationParameters The parameters that tell how to estimate extrinsics.
-   * @return Index of new camera.
-   */
-  int addCameraToGlobal(
-      const okvis::ExtrinsicsEstimationParameters & extrinsicsEstimationParameters);
-
   /**
    * @brief Add an IMU to the configuration.
    * @warning Currently there is only one IMU supported.
@@ -153,15 +143,6 @@ class Estimator : public VioBackendInterface
   bool addStatesToGlobal(okvis::MultiFramePtr multiFrame,
                  const okvis::ImuMeasurementDeque & imuMeasurements,
                  bool asKeyframe);
-
-  /**
-   * @brief Add a pose to the state.
-   * @param multiFrame Matched multiFrame.
-   * @param T_WS transformation between multiframe and worldframe (prior for optimization)
-   * @return True if successful.
-   */
-  bool addMultiframeToGlobal(okvis::MultiFramePtr multiFrame,
-                 okvis::kinematics::Transformation T_WS);
 
   /**
    * @brief Prints state information to buffer.
@@ -250,6 +231,7 @@ class Estimator : public VioBackendInterface
   /**
    * @brief Applies the dropping/marginalization strategy to the global estimator.
    *        The new number of frames in the window will be numKeyframes+numImuFrames.
+   * @warning: not used at the moment.
    * @param numKeyframes Number of keyframes.
    * @param numImuFrames Number of frames in IMU window.
    * @param removedLandmarks Get the landmarks that were removed by this operation.
@@ -370,7 +352,7 @@ class Estimator : public VioBackendInterface
   bool get_T_WS(uint64_t poseId, okvis::kinematics::Transformation & T_WS) const;
 
   /**
-   * @brief Get pose for a given pose ID.
+   * @brief Get pose for a given pose ID from global estimator.
    * @param[in]  poseId ID of desired pose.
    * @param[out] T_WS Homogeneous transformation of this pose.
    * @return True if successful.

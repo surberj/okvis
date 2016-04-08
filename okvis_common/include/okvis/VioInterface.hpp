@@ -274,7 +274,7 @@ class VioInterface {
   virtual void setFullStateCallback(
       const FullStateCallback & fullStateCallback);
 
-  /// \brief Set the fullStateCallback to be called every time a new state is estimated.
+  /// \brief Set the fullStateCallbackWithReference to be called every time a new state is estimated.
   ///        When an implementing class has an estimate, they can call:
   ///        _fullStateCallback( stamp, T_w_vk, speedAndBiases, omega_S, T_w_vk_ref);
   ///        where stamp is the timestamp
