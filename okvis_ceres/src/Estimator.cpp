@@ -1122,7 +1122,7 @@ bool Estimator::applyGlobalMarginalizationStrategy(
   if (globalmarginalizationErrorPtr_ && globalmarginalizationResidualId_) {
     bool success = globalmapPtr_->removeResidualBlock(globalmarginalizationResidualId_);
     OKVIS_ASSERT_TRUE_DBG(Exception, success,
-                       "could not remove marginalization error");
+                       "could not remove global marginalization error");
     globalmarginalizationResidualId_ = 0;
     if (!success)
       return false;

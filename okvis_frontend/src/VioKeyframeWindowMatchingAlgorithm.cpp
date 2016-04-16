@@ -120,7 +120,6 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setMatchingType(
 // This will be called exactly once for each call to DenseMatcher::match().
 template<class CAMERA_GEOMETRY_T>
 void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::doSetup() {
-
   // setup stereo triangulator
   // first, let's get the relative uncertainty.
   okvis::kinematics::Transformation T_CaCb;
@@ -272,7 +271,6 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::doSetup() {
       }
     }
   }
-
 }
 
 // What is the size of list A?
@@ -362,7 +360,6 @@ size_t VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::numUncertainMatche
 template<class CAMERA_GEOMETRY_T>
 void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setBestMatch(
     size_t indexA, size_t indexB, double /*distance*/) {
-
   // assign correspondences
   uint64_t lmIdA = frameA_->landmarkId(camIdA_, indexA);
   uint64_t lmIdB = frameB_->landmarkId(camIdB_, indexB);
@@ -373,7 +370,6 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setBestMatch(
     if (lmIdA != 0 && lmIdB != 0) {
       return;
     }
-
     // re-triangulate...
     // potential 2d2d match - verify by triangulation
     Eigen::Vector4d hP_Ca;
@@ -462,6 +458,7 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setBestMatch(
       if (canBeInitialized) {
         estimator_->setLandmarkInitialized(lmId, true);
         estimator_->setLandmark(lmId, T_WCa_ * hP_Ca);
+        estimator_->setLandmarkInGlobalEstimator(lmId, T_WCa_ * hP_Ca);
       }
     }
 
@@ -530,9 +527,10 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setBestMatch(
 
     // let's check for consistency with other observations:
     okvis::ceres::HomogeneousPointParameterBlock point(T_WCa_ * hP_Ca, 0);
-    if(canBeInitialized)
+    if(canBeInitialized) {
       estimator_->setLandmark(lmId, point.estimate());
-
+      estimator_->setLandmarkInGlobalEstimator(lmId, point.estimate());
+    }
   } else {
     OKVIS_ASSERT_TRUE_DBG(Exception,lmIdB==0,"bug. Id in frame B already set.");
 
@@ -564,20 +562,21 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setBestMatch(
     frameB_->setLandmarkId(camIdB_, indexB, lmIdA);
     lmIdB = lmIdA;
     okvis::MapPoint landmark;
-    estimator_->getLandmark(lmIdA, landmark);
+    estimator_->getLandmarkFromGlobal(lmIdA, landmark);
 
     // initialize in graph
     if (landmark.observations.find(
         okvis::KeypointIdentifier(mfIdB_, camIdB_, indexB))
         == landmark.observations.end()) {  // ensure no double observations...
-      OKVIS_ASSERT_TRUE(Exception, estimator_->isLandmarkAddedToGlobal(lmIdB),
-                        "not added");
-      estimator_->addObservation<camera_geometry_t>(lmIdB, mfIdB_, camIdB_,
+      // if landmark is present in estimator, add observation
+      if (estimator_->isLandmarkAdded(lmIdB)) 
+        estimator_->addObservation<camera_geometry_t>(lmIdB, mfIdB_, camIdB_,
                                                     indexB);
-      estimator_->addObservationToGlobal<camera_geometry_t>(lmIdB, mfIdB_, camIdB_,
+      // if landmark is present in estimator, add observation
+      if (estimator_->isLandmarkAddedToGlobal(lmIdB)) 
+        estimator_->addObservationToGlobal<camera_geometry_t>(lmIdB, mfIdB_, camIdB_,
                                                     indexB);
     }
-
   }
   numMatches_++;
 }

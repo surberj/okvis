@@ -407,6 +407,7 @@ int Frontend::matchToKeyframes(okvis::Estimator& estimator,
     }
     kfcounter++;
     if (kfcounter > 2)
+      LOG(WARNING) << "1. kfcounter = " << kfcounter;
       break;
   }
 
@@ -448,6 +449,7 @@ int Frontend::matchToKeyframes(okvis::Estimator& estimator,
 
     kfcounter++;
     if (kfcounter > 1)
+      LOG(WARNING) << "2. kfcounter = " << kfcounter;
       break;
   }
 

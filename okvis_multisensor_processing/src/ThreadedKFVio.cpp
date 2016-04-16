@@ -187,9 +187,9 @@ ThreadedKFVio::~ThreadedKFVio() {
   s << endPosition.r();
   LOG(INFO) << "Sensor end position:\n" << s.str();
   LOG(INFO) << "Distance to origin: " << endPosition.r().norm();*/
-#ifndef DEACTIVATE_TIMERS
+//#ifndef DEACTIVATE_TIMERS
   LOG(INFO) << okvis::timing::Timing::print();
-#endif
+//#endif
 }
 
 // Add a new image.
@@ -493,6 +493,7 @@ void ThreadedKFVio::matchingLoop() {
                                                            imuDataEndTime);
 
     prepareToAddStateTimer.stop();
+
     // if imu_data is empty, either end_time > begin_time or
     // no measurements in timeframe, should not happen, as we waited for measurements
     if (imuData.size() == 0)
@@ -526,6 +527,8 @@ void ThreadedKFVio::matchingLoop() {
       frontend_.dataAssociationAndInitialization(estimator_, T_WS, parameters_,
                                                  map_, frame, &asKeyframe);
       matchingTimer.stop();
+      LOG(WARNING) << "matchingTimer: " << okvis::Time::now() - t0Matching << " sec";
+
       if (asKeyframe)
         estimator_.setKeyframe(frame->id(), asKeyframe);
       if(!blocking_) {
@@ -824,8 +827,8 @@ void ThreadedKFVio::optimizationLoop() {
       estimator_.applyMarginalizationStrategy(
           parameters_.optimization.numKeyframes,
           parameters_.optimization.numImuFrames, result.transferredLandmarks);
-      //estimator_.applyGlobalMarginalizationStrategy(10000, 10,
-      //    global_result.transferredLandmarks);
+      estimator_.applyGlobalMarginalizationStrategy(10000, parameters_.optimization.numImuFrames,
+          global_result.transferredLandmarks);
       marginalizationTimer.stop();
       afterOptimizationTimer.start();
 
