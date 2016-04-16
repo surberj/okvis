@@ -139,7 +139,7 @@ bool Frontend::dataAssociationAndInitialization(
   int num3dMatches = 0;
 
   // first frame? (did do addStates before, so 1 frame minimum in estimator)
-  if (estimator.numFrames() > 1) {
+  if (estimator.numGlobalFrames() > 1) {
 
     int requiredMatches = 5;
 
@@ -296,7 +296,7 @@ bool Frontend::doWeNeedANewKeyframe(
     const okvis::Estimator& estimator,
     std::shared_ptr<okvis::MultiFrame> currentFrame) {
 
-  if (estimator.numFrames() < 2) {
+  if (estimator.numGlobalFrames() < 2) {
     // just starting, so yes, we need this as a new keyframe
     return true;
   }
@@ -378,7 +378,7 @@ int Frontend::matchToKeyframes(okvis::Estimator& estimator,
                                double* uncertainMatchFraction,
                                bool removeOutliers) {
   rotationOnly = true;
-  if (estimator.numFrames() < 2) {
+  if (estimator.numGlobalFrames() < 2) {
     // just starting, so yes, we need this as a new keyframe
     return 0;
   }
@@ -388,9 +388,9 @@ int Frontend::matchToKeyframes(okvis::Estimator& estimator,
 
   // go through all the frames and try to match the initialized keypoints
   size_t kfcounter = 0;
-  for (size_t age = 1; age < estimator.numFrames(); ++age) {
-    uint64_t olderFrameId = estimator.frameIdByAge(age);
-    if (!estimator.isKeyframe(olderFrameId))
+  for (size_t age = 1; age < estimator.numGlobalFrames(); ++age) {
+    uint64_t olderFrameId = estimator.frameIdByAgeFromGlobal(age);
+    if (!estimator.isKeyframeInGlobal(olderFrameId))
       continue;
     for (size_t im = 0; im < params.nCameraSystem.numCameras(); ++im) {
       MATCHING_ALGORITHM matchingAlgorithm(estimator,
@@ -412,9 +412,9 @@ int Frontend::matchToKeyframes(okvis::Estimator& estimator,
 
   kfcounter = 0;
   bool firstFrame = true;
-  for (size_t age = 1; age < estimator.numFrames(); ++age) {
-    uint64_t olderFrameId = estimator.frameIdByAge(age);
-    if (!estimator.isKeyframe(olderFrameId))
+  for (size_t age = 1; age < estimator.numGlobalFrames(); ++age) {
+    uint64_t olderFrameId = estimator.frameIdByAgeFromGlobal(age);
+    if (!estimator.isKeyframeInGlobal(olderFrameId))
       continue;
     for (size_t im = 0; im < params.nCameraSystem.numCameras(); ++im) {
       MATCHING_ALGORITHM matchingAlgorithm(estimator,
@@ -433,7 +433,7 @@ int Frontend::matchToKeyframes(okvis::Estimator& estimator,
     // only do RANSAC 3D2D with most recent KF
     if (kfcounter == 0 && isInitialized_)
       runRansac3d2d(estimator, params.nCameraSystem,
-                    estimator.multiFrame(currentFrameId), removeOutliers);
+                    estimator.multiFrameFromGlobal(currentFrameId), removeOutliers);
 
     bool rotationOnly_tmp = false;
     // do RANSAC 2D2D for initialization only
@@ -635,6 +635,10 @@ int Frontend::runRansac3d2d(okvis::Estimator& estimator,
           estimator.removeObservation(lmId, currentFrame->id(), camIdx,
                                       keypointIdx);
         }
+        if (removeOutliers) {
+          estimator.removeObservationFromGlobal(lmId, currentFrame->id(), camIdx,
+                                      keypointIdx);
+        }
       }
     }
   }
@@ -733,7 +737,7 @@ int Frontend::runRansac2d2d(okvis::Estimator& estimator,
     }
 
     // otherwise: kick out outliers!
-    std::shared_ptr<okvis::MultiFrame> multiFrame = estimator.multiFrame(
+    std::shared_ptr<okvis::MultiFrame> multiFrame = estimator.multiFrameFromGlobal(
         currentFrameId);
 
     for (size_t k = 0; k < numCorrespondences; ++k) {
@@ -747,6 +751,9 @@ int Frontend::runRansac2d2d(okvis::Estimator& estimator,
         if (removeOutliers) {
           if (lmId != 0 && estimator.isLandmarkAdded(lmId)){
             estimator.removeObservation(lmId, currentFrameId, im, idxB);
+          }
+          if (lmId != 0 && estimator.isLandmarkAddedToGlobal(lmId)){
+            estimator.removeObservationFromGlobal(lmId, currentFrameId, im, idxB);
           }
         }
       }
@@ -766,10 +773,10 @@ int Frontend::runRansac2d2d(okvis::Estimator& estimator,
       okvis::kinematics::Transformation T_SCA, T_WSA, T_SC0, T_WS0;
       uint64_t idA = olderFrameId;
       uint64_t id0 = currentFrameId;
-      estimator.getCameraSensorStates(idA, im, T_SCA);
-      estimator.get_T_WS(idA, T_WSA);
-      estimator.getCameraSensorStates(id0, im, T_SC0);
-      estimator.get_T_WS(id0, T_WS0);
+      estimator.getCameraSensorStatesFromGlobal(idA, im, T_SCA);
+      estimator.get_global_T_WS(idA, T_WSA);
+      estimator.getCameraSensorStatesFromGlobal(id0, im, T_SC0);
+      estimator.get_global_T_WS(id0, T_WS0);
       if (rel_pose_success) {
         // update pose
         // if the IMU is used, this will be quickly optimized to the correct scale. Hopefully.
@@ -793,6 +800,10 @@ int Frontend::runRansac2d2d(okvis::Estimator& estimator,
 
       // set.
       estimator.set_T_WS(
+          id0,
+          T_WSA * T_SCA * okvis::kinematics::Transformation(T_C1C2_mat)
+              * T_SC0.inverse());
+      estimator.set_T_WS_InGlobalEstimator(
           id0,
           T_WSA * T_SCA * okvis::kinematics::Transformation(T_C1C2_mat)
               * T_SC0.inverse());

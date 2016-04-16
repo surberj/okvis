@@ -85,8 +85,8 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setFrames(
   camIdA_ = camIdA;
   camIdB_ = camIdB;
   // frames and related information
-  frameA_ = estimator_->multiFrame(mfIdA_);
-  frameB_ = estimator_->multiFrame(mfIdB_);
+  frameA_ = estimator_->multiFrameFromGlobal(mfIdA_);
+  frameB_ = estimator_->multiFrameFromGlobal(mfIdB_);
 
   // focal length
   fA_ = frameA_->geometryAs<CAMERA_GEOMETRY_T>(camIdA_)->focalLengthU();
@@ -94,10 +94,10 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setFrames(
 
   // calculate the relative transformations and uncertainties
   // TODO donno, if and what we need here - I'll see
-  estimator_->getCameraSensorStates(mfIdA_, camIdA, T_SaCa_);
-  estimator_->getCameraSensorStates(mfIdB_, camIdB, T_SbCb_);
-  estimator_->get_T_WS(mfIdA_, T_WSa_);
-  estimator_->get_T_WS(mfIdB_, T_WSb_);
+  estimator_->getCameraSensorStatesFromGlobal(mfIdA_, camIdA, T_SaCa_);
+  estimator_->getCameraSensorStatesFromGlobal(mfIdB_, camIdB, T_SbCb_);
+  estimator_->get_global_T_WS(mfIdA_, T_WSa_);
+  estimator_->get_global_T_WS(mfIdB_, T_WSb_);
   T_SaW_ = T_WSa_.inverse();
   T_SbW_ = T_WSb_.inverse();
   T_WCa_ = T_WSa_ * T_SaCa_;
@@ -165,7 +165,7 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::doSetup() {
     for (size_t k = 0; k < numA; ++k) {
       uint64_t lm_id = frameA_->landmarkId(camIdA_, k);
 
-      if (lm_id == 0 || !estimator_->isLandmarkAdded(lm_id)) {
+      if (lm_id == 0 || !estimator_->isLandmarkAddedToGlobal(lm_id)) {
         // this can happen, if you called the 2D-2D version just before,
         // without inserting the landmark into the graph
         skipA_[k] = true;
@@ -173,10 +173,10 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::doSetup() {
       }
 
       okvis::MapPoint landmark;
-      estimator_->getLandmark(lm_id, landmark);
+      estimator_->getLandmarkFromGlobal(lm_id, landmark);
       Eigen::Vector4d hp_W = landmark.point;
 
-      if (!estimator_->isLandmarkInitialized(lm_id)) {
+      if (!estimator_->isLandmarkInitializedInGlobal(lm_id)) {
         skipA_[k] = true;
         continue;
       }
@@ -222,8 +222,8 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::doSetup() {
       if (frameA_->landmarkId(camIdA_, k) == 0) {
         continue;
       }
-      if (estimator_->isLandmarkAdded(frameA_->landmarkId(camIdA_, k))) {
-        if (estimator_->isLandmarkInitialized(
+      if (estimator_->isLandmarkAddedToGlobal(frameA_->landmarkId(camIdA_, k))) {
+        if (estimator_->isLandmarkInitializedInGlobal(
             frameA_->landmarkId(camIdA_, k))) {
           skipA_[k] = true;
         }
@@ -239,8 +239,8 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::doSetup() {
     for (size_t k = 0; k < numB; ++k) {
       okvis::MapPoint landmark;
       if (frameB_->landmarkId(camIdB_, k) != 0
-          && estimator_->isLandmarkAdded(frameB_->landmarkId(camIdB_, k))) {
-        estimator_->getLandmark(frameB_->landmarkId(camIdB_, k), landmark);
+          && estimator_->isLandmarkAddedToGlobal(frameB_->landmarkId(camIdB_, k))) {
+        estimator_->getLandmarkFromGlobal(frameB_->landmarkId(camIdB_, k), landmark);
         skipB_.push_back(
             landmark.observations.find(
                 okvis::KeypointIdentifier(mfIdB_, camIdB_, k))
@@ -264,9 +264,9 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::doSetup() {
         skipB_.push_back(false);
         continue;
       }
-      if (estimator_->isLandmarkAdded(frameB_->landmarkId(camIdB_, k))) {
+      if (estimator_->isLandmarkAddedToGlobal(frameB_->landmarkId(camIdB_, k))) {
         skipB_.push_back(
-            estimator_->isLandmarkInitialized(frameB_->landmarkId(camIdB_, k)));  // old: isSet - check.
+            estimator_->isLandmarkInitializedInGlobal(frameB_->landmarkId(camIdB_, k)));  // old: isSet - check.
       } else {
         skipB_.push_back(false);
       }
@@ -570,7 +570,7 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setBestMatch(
     if (landmark.observations.find(
         okvis::KeypointIdentifier(mfIdB_, camIdB_, indexB))
         == landmark.observations.end()) {  // ensure no double observations...
-      OKVIS_ASSERT_TRUE(Exception, estimator_->isLandmarkAdded(lmIdB),
+      OKVIS_ASSERT_TRUE(Exception, estimator_->isLandmarkAddedToGlobal(lmIdB),
                         "not added");
       estimator_->addObservation<camera_geometry_t>(lmIdB, mfIdB_, camIdB_,
                                                     indexB);

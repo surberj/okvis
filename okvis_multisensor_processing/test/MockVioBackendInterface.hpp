@@ -59,21 +59,33 @@ class MockVioBackendInterface : public VioBackendInterface {
 
   MOCK_METHOD2(addLandmark,
       bool(uint64_t landmarkId, const Eigen::Vector4d & landmark));
+  MOCK_METHOD2(addLandmarkToGlobal,
+      bool(uint64_t landmarkId, const Eigen::Vector4d & landmark));
   MOCK_METHOD4(addObservation,
       ::ceres::ResidualBlockId(uint64_t landmarkId, uint64_t poseId, size_t camIdx, size_t keypointIdx));
   MOCK_METHOD4(removeObservation,
+      bool(uint64_t landmarkId, uint64_t poseId, size_t camIdx, size_t keypointIdx));
+  MOCK_METHOD4(removeObservationFromGlobal,
       bool(uint64_t landmarkId, uint64_t poseId, size_t camIdx, size_t keypointIdx));
   MOCK_METHOD3(applyMarginalizationStrategy,
       bool(size_t numKeyframes, size_t numImuFrames, okvis::MapPointVector& removedLandmarks));
   MOCK_METHOD3(optimize,
       void(size_t, size_t, bool));
+  MOCK_METHOD3(optimizeGlobal,
+      void(size_t, size_t, bool));
   MOCK_METHOD2(setOptimizationTimeLimit,
       bool(double timeLimit, int minIterations));
   MOCK_CONST_METHOD1(isLandmarkAdded,
       bool(uint64_t landmarkId));
+  MOCK_CONST_METHOD1(isLandmarkAddedToGlobal,
+      bool(uint64_t landmarkId));
   MOCK_CONST_METHOD1(isLandmarkInitialized,
       bool(uint64_t landmarkId));
+  MOCK_CONST_METHOD1(isLandmarkInitializedInGlobal,
+      bool(uint64_t landmarkId));
   MOCK_CONST_METHOD2(getLandmark,
+      bool(uint64_t landmarkId, MapPoint& mapPoint));
+  MOCK_CONST_METHOD2(getLandmarkFromGlobal,
       bool(uint64_t landmarkId, MapPoint& mapPoint));
   MOCK_CONST_METHOD1(getLandmarks,
       size_t(PointMap & landmarks));
@@ -81,15 +93,25 @@ class MockVioBackendInterface : public VioBackendInterface {
       size_t(okvis::MapPointVector& landmarks));
   MOCK_CONST_METHOD1(multiFrame,
                      okvis::MultiFramePtr(uint64_t frameId));
+  MOCK_CONST_METHOD1(multiFrameFromGlobal,
+                     okvis::MultiFramePtr(uint64_t frameId));
   MOCK_CONST_METHOD2(get_T_WS,
+      bool(uint64_t poseId, okvis::kinematics::Transformation & T_WS));
+  MOCK_CONST_METHOD2(get_global_T_WS,
       bool(uint64_t poseId, okvis::kinematics::Transformation & T_WS));
   MOCK_CONST_METHOD3(getSpeedAndBias,
       bool(uint64_t poseId, uint64_t imuIdx, okvis::SpeedAndBias & speedAndBias));
   MOCK_CONST_METHOD3(getCameraSensorStates,
       bool(uint64_t poseId, size_t cameraIdx, okvis::kinematics::Transformation & T_SCi));
+  MOCK_CONST_METHOD3(getCameraSensorStatesFromGlobal,
+      bool(uint64_t poseId, size_t cameraIdx, okvis::kinematics::Transformation & T_SCi));
   MOCK_CONST_METHOD0(numFrames,
                      size_t());
+                     MOCK_CONST_METHOD0(numGlobalFrames,
+                     size_t());
   MOCK_CONST_METHOD0(numLandmarks,
+      size_t());
+  MOCK_CONST_METHOD0(numGlobalLandmarks,
       size_t());
   MOCK_CONST_METHOD0(currentKeyframeId,
       uint64_t());
@@ -99,23 +121,35 @@ class MockVioBackendInterface : public VioBackendInterface {
       uint64_t());
   MOCK_CONST_METHOD1(isKeyframe,
       bool(uint64_t frameId));
+  MOCK_CONST_METHOD1(isKeyframeInGlobal,
+      bool(uint64_t frameId));
   MOCK_CONST_METHOD1(isInImuWindow,
       bool(uint64_t frameId));
   MOCK_CONST_METHOD1(timestamp,
       okvis::Time(uint64_t frameId));
   MOCK_METHOD2(set_T_WS,
       bool(uint64_t poseId, const okvis::kinematics::Transformation & T_WS));
+  MOCK_METHOD2(set_T_WS_InGlobalEstimator,
+      bool(uint64_t poseId, const okvis::kinematics::Transformation & T_WS));
   MOCK_METHOD3(setSpeedAndBias,
+      bool(uint64_t poseId, size_t imuIdx, const okvis::SpeedAndBias & speedAndBias));
+  MOCK_METHOD3(setSpeedAndBiasInGlobalEstimator,
       bool(uint64_t poseId, size_t imuIdx, const okvis::SpeedAndBias & speedAndBias));
   MOCK_METHOD3(setCameraSensorStates,
       bool(uint64_t poseId, size_t cameraIdx, const okvis::kinematics::Transformation & T_SCi));
+  MOCK_METHOD3(setCameraSensorStatesInGlobalEstimator,
+      bool(uint64_t poseId, size_t cameraIdx, const okvis::kinematics::Transformation & T_SCi));
   MOCK_METHOD2(setLandmark,
+      bool(uint64_t landmarkId, const Eigen::Vector4d & landmark));
+  MOCK_METHOD2(setLandmarkInGlobalEstimator,
       bool(uint64_t landmarkId, const Eigen::Vector4d & landmark));
   MOCK_METHOD2(setLandmarkInitialized,
       void(uint64_t landmarkId, bool initialized));
   MOCK_METHOD2(setKeyframe,
       void(uint64_t frameId, bool isKeyframe));
   MOCK_METHOD1(setMap,
+      void(std::shared_ptr<okvis::ceres::Map> mapPtr));
+  MOCK_METHOD1(setMapInGlobalEstimator,
       void(std::shared_ptr<okvis::ceres::Map> mapPtr));
   MOCK_CONST_METHOD0(initializationStatus, 
       VioBackendInterface::InitializationStatus());

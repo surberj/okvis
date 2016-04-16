@@ -471,7 +471,6 @@ void ThreadedKFVio::matchingLoop() {
     // get data and check for termination request
     if (keypointMeasurements_.PopBlocking(&frame) == false)
       return;
-
     prepareToAddStateTimer.start();
     // -- get relevant imu messages for new state
     okvis::Time imuDataEndTime = frame->timestamp() + temporal_imu_data_overlap;
@@ -790,10 +789,15 @@ void ThreadedKFVio::optimizationLoop() {
       // DEBUG:
       if (estimator_.isKeyframe(estimator_.currentFrameId()) && estimator_.currentFrameId()>0) {
         keyframe_counter_++;
-        LOG(WARNING) << "add keyframe number " << keyframe_counter_ << " to global estimator";
+        //LOG(WARNING) << "add keyframe number " << keyframe_counter_ << " to global estimator";
+        LOG(WARNING) << "landmarks local: " << estimator_.numLandmarks() << ", global: " << estimator_.numGlobalLandmarks();
         // debug: run optimization every N keyframes:
         int N = 20;
         if (keyframe_counter_ % N == 0) {
+          // do random matching between frames to get additional "loop closing" constraints.
+
+
+
           estimator_.optimizeGlobal(20, 2, true);
           estimator_.get_global_T_WS(estimator_.currentFrameId(), lastOptimized_T_WS_ref_);
           LOG(INFO) << "OKVIS pose: ";
@@ -815,6 +819,7 @@ void ThreadedKFVio::optimizationLoop() {
             estimator_.frameIdByAge(parameters_.optimization.numImuFrames))
             ->timestamp() - temporal_imu_data_overlap;
       }
+
       marginalizationTimer.start();
       estimator_.applyMarginalizationStrategy(
           parameters_.optimization.numKeyframes,

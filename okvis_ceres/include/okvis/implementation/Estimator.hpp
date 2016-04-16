@@ -121,7 +121,7 @@ template<class GEOMETRY_TYPE>
                   multiFramePtr->template geometryAs<GEOMETRY_TYPE>(camIdx),
                   camIdx, measurement, information));
 
-  ::ceres::ResidualBlockId globalretVal = globalmapPtr_->addResidualBlock(
+  ::ceres::ResidualBlockId retVal = globalmapPtr_->addResidualBlock(
       reprojectionError,
       cauchyLossFunctionPtr_ ? cauchyLossFunctionPtr_.get() : NULL,
       globalmapPtr_->parameterBlockPtr(poseId),
@@ -133,9 +133,9 @@ template<class GEOMETRY_TYPE>
   // remember
   globallandmarksMap_.at(landmarkId).observations.insert(
       std::pair<okvis::KeypointIdentifier, uint64_t>(
-          kid, reinterpret_cast<uint64_t>(globalretVal)));
+          kid, reinterpret_cast<uint64_t>(retVal)));
 
-  return globalretVal;
+  return retVal;
 }
 
 }  // namespace okvis

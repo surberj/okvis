@@ -142,6 +142,15 @@ class VioBackendInterface {
                            const Eigen::Vector4d & landmark) = 0;
 
   /**
+   * @brief Add a landmark.
+   * @param landmarkId ID of the new landmark.
+   * @param landmark Homogeneous coordinates of landmark in W-frame.
+   * @return True if successful.
+   */
+  virtual bool addLandmarkToGlobal(uint64_t landmarkId,
+                           const Eigen::Vector4d & landmark) = 0;
+
+  /**
    * @brief Remove an observation from a landmark, if available.
    * @param landmarkId ID of landmark.
    * @param poseId ID of pose where the landmark was observed.
@@ -151,6 +160,17 @@ class VioBackendInterface {
    */
   virtual bool removeObservation(uint64_t landmarkId, uint64_t poseId,  size_t camIdx,
                          size_t keypointIdx) = 0;
+
+  /**
+   * @brief Remove an observation from a landmark, if available.
+   * @param landmarkId ID of landmark.
+   * @param poseId ID of pose where the landmark was observed.
+   * @param camIdx ID of camera frame where the landmark was observed.
+   * @param keypointIdx ID of keypoint corresponding to the landmark.
+   * @return True if observation was present and successfully removed.
+   */
+  virtual bool removeObservationFromGlobal(uint64_t landmarkId, uint64_t poseId,  size_t camIdx,
+                         size_t keypointIdx) = 0;
   /**
    * @brief Start optimization.
    * @param[in] numIter Maximum number of iterations.
@@ -158,6 +178,14 @@ class VioBackendInterface {
    * @param[in] verbose Print out optimization progress and result, if true.
    */
   virtual void optimize(size_t numIter, size_t numThreads = 1, bool verbose = false) = 0;
+
+  /**
+   * @brief Start optimization.
+   * @param[in] numIter Maximum number of iterations.
+   * @param[in] numThreads Number of threads.
+   * @param[in] verbose Print out optimization progress and result, if true.
+   */
+  virtual void optimizeGlobal(size_t numIter, size_t numThreads = 1, bool verbose = false) = 0;
 
   /**
    * @brief Set a time limit for the optimization process.
@@ -176,11 +204,25 @@ class VioBackendInterface {
   virtual bool isLandmarkAdded(uint64_t landmarkId) const = 0;
 
   /**
+   * @brief Checks whether the landmark is added to the estimator.
+   * @param landmarkId The ID.
+   * @return True if added.
+   */
+  virtual bool isLandmarkAddedToGlobal(uint64_t landmarkId) const = 0;
+
+  /**
    * @brief Checks whether the landmark is initialized
    * @param landmarkId The ID.
    * @return True if initialised.
    */
   virtual bool isLandmarkInitialized(uint64_t landmarkId) const = 0;
+
+  /**
+   * @brief Checks whether the landmark is initialized
+   * @param landmarkId The ID.
+   * @return True if initialised.
+   */
+  virtual bool isLandmarkInitializedInGlobal(uint64_t landmarkId) const = 0;
 
   /// @name Getters
   ///\{
@@ -191,6 +233,13 @@ class VioBackendInterface {
    * @return True if successful.
    */
   virtual bool getLandmark(uint64_t landmarkId, MapPoint& mapPoint) const = 0;
+  /**
+   * @brief Get a specific landmark from global estimator.
+   * @param[in]  landmarkId ID of desired landmark.
+   * @param[out] mapPoint Landmark information, such as quality, coordinates etc.
+   * @return True if successful.
+   */
+  virtual bool getLandmarkFromGlobal(uint64_t landmarkId, MapPoint& mapPoint) const = 0;
 
   /**
    * @brief Get a copy of all the landmarks as a PointMap.
@@ -207,12 +256,27 @@ class VioBackendInterface {
   virtual okvis::MultiFramePtr multiFrame(uint64_t frameId) const = 0;
 
   /**
+   * @brief Get a multiframe.
+   * @param frameId ID of desired multiframe.
+   * @return Shared pointer to multiframe.
+   */
+  virtual okvis::MultiFramePtr multiFrameFromGlobal(uint64_t frameId) const = 0;
+
+  /**
    * @brief Get pose for a given pose ID.
    * @param[in]  poseId ID of desired pose.
    * @param[out] T_WS Homogeneous transformation of this pose.
    * @return True if successful.
    */
   virtual bool get_T_WS(uint64_t poseId, okvis::kinematics::Transformation & T_WS) const = 0;
+
+  /**
+   * @brief Get pose for a given pose ID.
+   * @param[in]  poseId ID of desired pose.
+   * @param[out] T_WS Homogeneous transformation of this pose.
+   * @return True if successful.
+   */
+  virtual bool get_global_T_WS(uint64_t poseId, okvis::kinematics::Transformation & T_WS) const = 0;
 
   /**
    * @brief Get speeds and IMU biases for a given pose ID.
@@ -233,13 +297,31 @@ class VioBackendInterface {
   virtual bool getCameraSensorStates(uint64_t poseId, size_t cameraIdx,
                               okvis::kinematics::Transformation & T_SCi) const = 0;
 
+  /**
+   * @brief Get camera states for a given pose ID.
+   * @param[in]  poseId ID of pose to get camera state for.
+   * @param[in]  cameraIdx index of camera to get state for.
+   * @param[out] T_SCi Homogeneous transformation from sensor (IMU) frame to camera frame.
+   * @return True if successful.
+   */
+  virtual bool getCameraSensorStatesFromGlobal(uint64_t poseId, size_t cameraIdx,
+                              okvis::kinematics::Transformation & T_SCi) const = 0;
+
   /// @brief Get the number of states/frames in the estimator.
   /// \return The number of frames.
   virtual size_t numFrames() const = 0;
 
+  /// @brief Get the number of states/frames in the global estimator.
+  /// \return The number of frames.
+  virtual size_t numGlobalFrames() const = 0;
+
   /// @brief Get the number of landmarks in the backend.
   /// \return The number of landmarks.
   virtual size_t numLandmarks() const = 0;
+
+  /// @brief Get the number of landmarks in the backend.
+  /// \return The number of landmarks.
+  virtual size_t numGlobalLandmarks() const = 0;
 
   /// @brief Get the ID of the newest frame added to the state.
   /// \return The ID of the current frame.
@@ -258,6 +340,13 @@ class VioBackendInterface {
    * @return True if the frame is a keyframe.
    */
   virtual bool isKeyframe(uint64_t frameId) const = 0;
+
+  /**
+   * @brief Checks if a particular frame is a keyframe.
+   * @param[in] frameId ID of frame to check.
+   * @return True if the frame is a keyframe.
+   */
+  virtual bool isKeyframeInGlobal(uint64_t frameId) const = 0;
 
   /// @name Getters
   /// @{
@@ -300,6 +389,14 @@ class VioBackendInterface {
   virtual bool set_T_WS(uint64_t poseId, const okvis::kinematics::Transformation & T_WS) = 0;
 
   /**
+   * @brief Set pose for a given pose ID.
+   * @param[in] poseId ID of the pose that should be changed.
+   * @param[in] T_WS new homogeneous transformation.
+   * @return True if successful.
+   */
+  virtual bool set_T_WS_InGlobalEstimator(uint64_t poseId, const okvis::kinematics::Transformation & T_WS) = 0;
+
+  /**
    * @brief Set the speeds and IMU biases for a given pose ID.
    * @param[in] poseId ID of the pose to change corresponding speeds and biases for.
    * @param[in] imuIdx index of IMU to get biases for. As only one IMU is supported this is always 0.
@@ -307,6 +404,15 @@ class VioBackendInterface {
    * @return True if successful.
    */
   virtual bool setSpeedAndBias(uint64_t poseId, size_t imuIdx, const okvis::SpeedAndBias & speedAndBias) = 0;
+
+  /**
+   * @brief Set the speeds and IMU biases for a given pose ID.
+   * @param[in] poseId ID of the pose to change corresponding speeds and biases for.
+   * @param[in] imuIdx index of IMU to get biases for. As only one IMU is supported this is always 0.
+   * @param[in] speedAndBias new speeds and biases.
+   * @return True if successful.
+   */
+  virtual bool setSpeedAndBiasInGlobalEstimator(uint64_t poseId, size_t imuIdx, const okvis::SpeedAndBias & speedAndBias) = 0;
 
   /**
    * @brief Set the transformation from sensor to camera frame for a given pose ID
@@ -318,11 +424,28 @@ class VioBackendInterface {
   virtual bool setCameraSensorStates(uint64_t poseId, size_t cameraIdx,
                               const okvis::kinematics::Transformation & T_SCi) = 0;
 
+  /**
+   * @brief Set the transformation from sensor to camera frame for a given pose ID
+   * @param[in] poseId ID of the pose to change corresponding camera states for.
+   * @param[in] cameraIdx Index of camera to set state for.
+   * @param[in] T_SCi new homogeneous transformation from sensor (IMU) to camera frame.
+   * @return True if successful.
+   */
+  virtual bool setCameraSensorStatesInGlobalEstimator(uint64_t poseId, size_t cameraIdx,
+                              const okvis::kinematics::Transformation & T_SCi) = 0;
+
   /// @brief Set the homogeneous coordinates for a landmark
   /// @param[in] landmarkId The landmark ID.
   /// @param[in] landmark Homogeneous coordinates of landmark in W-frame.
   /// @return True if successful.
   virtual bool setLandmark(uint64_t landmarkId,
+                           const Eigen::Vector4d & landmark) = 0;
+
+  /// @brief Set the homogeneous coordinates for a landmark
+  /// @param[in] landmarkId The landmark ID.
+  /// @param[in] landmark Homogeneous coordinates of landmark in W-frame.
+  /// @return True if successful.
+  virtual bool setLandmarkInGlobalEstimator(uint64_t landmarkId,
                            const Eigen::Vector4d & landmark) = 0;
 
   /// @brief Set the landmark initialization state
@@ -338,6 +461,10 @@ class VioBackendInterface {
   /// @brief Set ceres map.
   /// @param[in] mapPtr The pointer to the okvis::ceres::Map.
   virtual void setMap(std::shared_ptr<okvis::ceres::Map> mapPtr) = 0;
+
+  /// @brief Set ceres map.
+  /// @param[in] mapPtr The pointer to the okvis::ceres::Map.
+  virtual void setMapInGlobalEstimator(std::shared_ptr<okvis::ceres::Map> mapPtr) = 0;
 
   /// @brief Request computation of uncertainties.
   /// param[in] computeUncertainty True, if uncertainties should be computed.
