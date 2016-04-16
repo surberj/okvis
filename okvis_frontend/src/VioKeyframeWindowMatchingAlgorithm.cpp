@@ -609,11 +609,11 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setBestMatch(
     if (landmark.observations.find(
         okvis::KeypointIdentifier(mfIdB_, camIdB_, indexB))
         == landmark.observations.end()) {  // ensure no double observations...
-      OKVIS_ASSERT_TRUE(Exception, estimator_->isLandmarkAdded(lmIdB),
-                        "not added");
-      estimator_->addObservation<camera_geometry_t>(lmIdB, mfIdB_, camIdB_,
+      if(estimator_->isLandmarkAdded(lmIdB))
+        estimator_->addObservation<camera_geometry_t>(lmIdB, mfIdB_, camIdB_,
                                                     indexB);
-      estimator_->addObservationToGlobal<camera_geometry_t>(lmIdB, mfIdB_, camIdB_,
+      if(estimator_->isLandmarkAddedToGlobal(lmIdB))
+        estimator_->addObservationToGlobal<camera_geometry_t>(lmIdB, mfIdB_, camIdB_,
                                                     indexB);
     }
 
