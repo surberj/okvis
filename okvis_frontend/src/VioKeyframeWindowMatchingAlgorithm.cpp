@@ -110,6 +110,45 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setFrames(
   validRelativeUncertainty_ = false;
 }
 
+// Set which frames to match.
+template<class CAMERA_GEOMETRY_T>
+void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setFramesInGlobalEstimator(
+    uint64_t mfIdA, uint64_t mfIdB, size_t camIdA, size_t camIdB) {
+
+  OKVIS_ASSERT_TRUE(Exception, !(mfIdA == mfIdB && camIdA == camIdB),
+                    "trying to match identical frames.");
+
+  // remember indices
+  mfIdA_ = mfIdA;
+  mfIdB_ = mfIdB;
+  camIdA_ = camIdA;
+  camIdB_ = camIdB;
+  // frames and related information
+  frameA_ = estimator_->multiFrameFromGlobalEstimator(mfIdA_);
+  frameB_ = estimator_->multiFrameFromGlobalEstimator(mfIdB_);
+
+  // focal length
+  fA_ = frameA_->geometryAs<CAMERA_GEOMETRY_T>(camIdA_)->focalLengthU();
+  fB_ = frameB_->geometryAs<CAMERA_GEOMETRY_T>(camIdB_)->focalLengthU();
+
+  // calculate the relative transformations and uncertainties
+  // TODO donno, if and what we need here - I'll see
+  estimator_->getCameraSensorStatesFromGlobalEstimator(mfIdA_, camIdA, T_SaCa_);
+  estimator_->getCameraSensorStatesFromGlobalEstimator(mfIdB_, camIdB, T_SbCb_);
+  estimator_->get_T_WS_FromGlobalEstimator(mfIdA_, T_WSa_);
+  estimator_->get_T_WS_FromGlobalEstimator(mfIdB_, T_WSb_);
+  T_SaW_ = T_WSa_.inverse();
+  T_SbW_ = T_WSb_.inverse();
+  T_WCa_ = T_WSa_ * T_SaCa_;
+  T_WCb_ = T_WSb_ * T_SbCb_;
+  T_CaW_ = T_WCa_.inverse();
+  T_CbW_ = T_WCb_.inverse();
+  T_CaCb_ = T_WCa_.inverse() * T_WCb_;
+  T_CbCa_ = T_CaCb_.inverse();
+
+  validRelativeUncertainty_ = false;
+}
+
 // Set the matching type.
 template<class CAMERA_GEOMETRY_T>
 void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setMatchingType(

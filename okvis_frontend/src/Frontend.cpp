@@ -113,6 +113,44 @@ bool Frontend::detectAndDescribe(size_t cameraIndex,
   return true;
 }
 
+// Find additional Matches across global estimator and add Observations to the optimization.
+bool Frontend::addMatches(
+    okvis::Estimator& estimator,
+    const okvis::VioParameters &params) {
+
+  // match newest 20 to first 20 keyframes (2D2D)
+  int N = 20;
+  size_t newFrameCounter = 0;
+  size_t oldFrameCounter = 0;
+  // loop through new frames:
+  for (size_t age = 1; newFrameCounter < N; ++age) {
+    uint64_t newFrameID = estimator.frameIdByAgeInGlobalEstimator(age);
+    if (!estimator.isKeyframeInGlobalEstimator(newFrameID))
+      continue;
+    newFrameCounter++;
+
+    // loop through old frames:
+    for (size_t oldage = 1; oldFrameCounter < N; ++oldage) {
+      uint64_t oldFrameID = estimator.frameIdByAgeInGlobalEstimator(estimator.numFramesInGlobalEstimator() - oldage);
+      if (!estimator.isKeyframeInGlobalEstimator(oldFrameID))
+        continue;
+      oldFrameCounter++;
+
+      // match the two frames
+      for (size_t im = 0; im < params.nCameraSystem.numCameras(); ++im) {
+        MATCHING_ALGORITHM matchingAlgorithm(estimator,
+                                             MATCHING_ALGORITHM::Match2D2D,
+                                             briskMatchingThreshold_,
+                                             false);
+        matchingAlgorithm.setFramesInGlobalEstimator(oldFrameId, newFrameId, im, im);
+
+        // match 2D-2D
+        matcher_->match<MATCHING_ALGORITHM>(matchingAlgorithm);
+      }
+    }
+  }
+}
+
 // Matching as well as initialization of landmarks and state.
 bool Frontend::dataAssociationAndInitialization(
     okvis::Estimator& estimator,
@@ -406,8 +444,9 @@ int Frontend::matchToKeyframes(okvis::Estimator& estimator,
 
     }
     kfcounter++;
-    if (kfcounter > 2)
-      break;
+// @surberj: Why do we break after matching the current frame to the first older keyframe?
+//    if (kfcounter > 2)
+//      break;
   }
 
   kfcounter = 0;
@@ -447,8 +486,9 @@ int Frontend::matchToKeyframes(okvis::Estimator& estimator,
     }
 
     kfcounter++;
-    if (kfcounter > 1)
-      break;
+// @surberj: Why do we break after matching the current frame to the first older keyframe?
+//    if (kfcounter > 1)
+//      break;
   }
 
   // calculate fraction of safe matches

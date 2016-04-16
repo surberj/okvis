@@ -791,6 +791,10 @@ void ThreadedKFVio::optimizationLoop() {
       if (estimator_.isKeyframe(estimator_.currentFrameId()) && estimator_.currentFrameId()>0) {
         keyframe_counter_++;
         LOG(WARNING) << "add keyframe number " << keyframe_counter_ << " to global estimator";
+
+        // find additional matches (e.g. to close loops)
+        frontend_.addMatches(estimator_, parameters_);
+
         // debug: run optimization every N keyframes:
         int N = 20;
         if (keyframe_counter_ % N == 0) {
