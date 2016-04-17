@@ -109,7 +109,7 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setFrames(
 
   validRelativeUncertainty_ = false;
 }
-
+/*
 // Set which frames to match.
 template<class CAMERA_GEOMETRY_T>
 void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setFramesInGlobalEstimator(
@@ -148,7 +148,7 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setFramesInGlobalEst
 
   validRelativeUncertainty_ = false;
 }
-
+*/
 // Set the matching type.
 template<class CAMERA_GEOMETRY_T>
 void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setMatchingType(
@@ -232,6 +232,7 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::doSetup() {
 
       if (landmark.observations.size() < 2) {
         estimator_->setLandmarkInitialized(lm_id, false);
+        estimator_->setLandmarkInitializedInGlobalEstimator(lm_id, false);
         skipA_[k] = true;
         continue;
       }
@@ -494,13 +495,15 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setBestMatch(
         estimator_->addLandmarkToGlobal(lmId, T_WCa_ * hP_Ca);
         OKVIS_ASSERT_TRUE(Exception, estimator_->isLandmarkAddedToGlobal(lmId),
                         lmId<<" not added, bug");
-        estimator_->setLandmarkInitialized(lmId, canBeInitialized);
+        estimator_->setLandmarkInitializedInGlobalEstimator(lmId, canBeInitialized);
       }
     } else {
       // update initialization status, set better estimate, if possible
       if (canBeInitialized) {
         estimator_->setLandmarkInitialized(lmId, true);
+        estimator_->setLandmarkInitializedInGlobalEstimator(lmId, true);
         estimator_->setLandmark(lmId, T_WCa_ * hP_Ca);
+        estimator_->setLandmarkInGlobalEstimator(lmId, T_WCa_ * hP_Ca);
       }
     }
 
@@ -569,8 +572,10 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setBestMatch(
 
     // let's check for consistency with other observations:
     okvis::ceres::HomogeneousPointParameterBlock point(T_WCa_ * hP_Ca, 0);
-    if(canBeInitialized)
+    if(canBeInitialized) {
       estimator_->setLandmark(lmId, point.estimate());
+      estimator_->setLandmarkInGlobalEstimator(lmId, point.estimate());
+    }
 
   } else {
     OKVIS_ASSERT_TRUE_DBG(Exception,lmIdB==0,"bug. Id in frame B already set.");

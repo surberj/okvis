@@ -790,10 +790,10 @@ void ThreadedKFVio::optimizationLoop() {
       // DEBUG:
       if (estimator_.isKeyframe(estimator_.currentFrameId()) && estimator_.currentFrameId()>0) {
         keyframe_counter_++;
-        LOG(WARNING) << "add keyframe number " << keyframe_counter_ << " to global estimator";
-
+        //LOG(WARNING) << "add keyframe number " << keyframe_counter_ << " to global estimator";
+        LOG(WARNING) << "landmarks local: " << estimator_.numLandmarks() << ", global: " << estimator_.numGlobalLandmarks();
         // find additional matches (e.g. to close loops)
-        frontend_.addMatches(estimator_, parameters_);
+//        frontend_.addMatches(estimator_, parameters_);
 
         // debug: run optimization every N keyframes:
         int N = 20;
@@ -823,8 +823,8 @@ void ThreadedKFVio::optimizationLoop() {
       estimator_.applyMarginalizationStrategy(
           parameters_.optimization.numKeyframes,
           parameters_.optimization.numImuFrames, result.transferredLandmarks);
-      //estimator_.applyGlobalMarginalizationStrategy(10000, 10,
-      //    global_result.transferredLandmarks);
+      estimator_.applyGlobalMarginalizationStrategy(10000, parameters_.optimization.numImuFrames,
+          global_result.transferredLandmarks);
       marginalizationTimer.stop();
       afterOptimizationTimer.start();
 

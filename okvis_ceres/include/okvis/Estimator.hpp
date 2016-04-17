@@ -394,6 +394,12 @@ class Estimator : public VioBackendInterface
     return landmarksMap_.size();
   }
 
+  /// @brief Get the number of landmarks in the estimator
+  /// \return The number of landmarks.
+  size_t numGlobalLandmarks() const {
+    return globallandmarksMap_.size();
+  }
+
   /// @brief Get the ID of the current keyframe.
   /// \return The ID of the current keyframe.
   uint64_t currentKeyframeId() const;
@@ -404,6 +410,13 @@ class Estimator : public VioBackendInterface
    * @return ID of the desired frame or 0 if parameter age was out of range.
    */
   uint64_t frameIdByAge(size_t age) const;
+
+  /**
+   * @brief Get the ID of an older frame.
+   * @param[in] age age of desired frame. 0 would be the newest frame added to the state.
+   * @return ID of the desired frame or 0 if parameter age was out of range.
+   */
+  uint64_t frameIdByAgeInGlobalEstimator(size_t age) const;
 
   /// @brief Get the ID of the newest frame added to the state.
   /// \return The ID of the current frame.
@@ -417,6 +430,15 @@ class Estimator : public VioBackendInterface
    * @return True if the frame is a keyframe.
    */
   bool isKeyframe(uint64_t frameId) const {
+    return statesMap_.at(frameId).isKeyframe;
+  }
+
+  /**
+   * @brief Checks if a particular frame is a keyframe.
+   * @param[in] frameId ID of frame to check.
+   * @return True if the frame is a keyframe.
+   */
+  bool isKeyframeInGlobalEstimator(uint64_t frameId) const {
     return statesMap_.at(frameId).isKeyframe;
   }
 
@@ -521,11 +543,17 @@ class Estimator : public VioBackendInterface
   /// @param[in] initialized Whether or not initialised.
   void setLandmarkInitialized(uint64_t landmarkId, bool initialized);
 
+  /// @brief Set the landmark initialization state.
+  /// @param[in] landmarkId The landmark ID.
+  /// @param[in] initialized Whether or not initialised.
+  void setLandmarkInitializedInGlobalEstimator(uint64_t landmarkId, bool initialized);
+
   /// @brief Set whether a frame is a keyframe or not.
   /// @param[in] frameId The frame ID.
   /// @param[in] isKeyframe Whether or not keyrame.
   void setKeyframe(uint64_t frameId, bool isKeyframe){
     statesMap_.at(frameId).isKeyframe = isKeyframe;
+    globalstatesMap_.at(frameId).isKeyframe = isKeyframe;
   }
 
   /// @brief set ceres map

@@ -2432,6 +2432,17 @@ uint64_t Estimator::frameIdByAge(size_t age) const {
   return rit->first;
 }
 
+// Get the ID of an older frame.
+uint64_t Estimator::frameIdByAgeInGlobalEstimator(size_t age) const {
+  std::map<uint64_t, States>::const_reverse_iterator rit = globalstatesMap_.rbegin();
+  for(size_t i=0; i<age; ++i){
+    ++rit;
+    OKVIS_ASSERT_TRUE_DBG(Exception, rit != globalstatesMap_.rend(),
+                       "requested age " << age << " out of range.");
+  }
+  return rit->first;
+}
+
 // Get the ID of the newest frame added to the state.
 uint64_t Estimator::currentFrameId() const {
   OKVIS_ASSERT_TRUE_DBG(Exception, statesMap_.size()>0, "no frames added yet.")
@@ -2569,10 +2580,15 @@ void Estimator::setLandmarkInitialized(uint64_t landmarkId,
                                                bool initialized) {
   OKVIS_ASSERT_TRUE_DBG(Exception, isLandmarkAdded(landmarkId),
                      "landmark not added");
-  OKVIS_ASSERT_TRUE_DBG(Exception, isLandmarkAddedToGlobal(landmarkId),
-                     "landmark not added to global estimator");
   std::static_pointer_cast<okvis::ceres::HomogeneousPointParameterBlock>(
       mapPtr_->parameterBlockPtr(landmarkId))->setInitialized(initialized);
+}
+
+// Set the landmark initialization state.
+void Estimator::setLandmarkInitializedInGlobalEstimator(uint64_t landmarkId,
+                                               bool initialized) {
+  OKVIS_ASSERT_TRUE_DBG(Exception, isLandmarkAddedToGlobal(landmarkId),
+                     "landmark not added to global estimator");
   std::static_pointer_cast<okvis::ceres::HomogeneousPointParameterBlock>(
       globalmapPtr_->parameterBlockPtr(landmarkId))->setInitialized(initialized);
 }

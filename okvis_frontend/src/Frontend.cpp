@@ -112,7 +112,7 @@ bool Frontend::detectAndDescribe(size_t cameraIndex,
   // set detector/extractor to nullpointer? TODO
   return true;
 }
-
+/*
 // Find additional Matches across global estimator and add Observations to the optimization.
 bool Frontend::addMatches(
     okvis::Estimator& estimator,
@@ -150,7 +150,7 @@ bool Frontend::addMatches(
     }
   }
 }
-
+*/
 // Matching as well as initialization of landmarks and state.
 bool Frontend::dataAssociationAndInitialization(
     okvis::Estimator& estimator,
@@ -787,6 +787,9 @@ int Frontend::runRansac2d2d(okvis::Estimator& estimator,
         if (removeOutliers) {
           if (lmId != 0 && estimator.isLandmarkAdded(lmId)){
             estimator.removeObservation(lmId, currentFrameId, im, idxB);
+          }
+          if (lmId != 0 && estimator.isLandmarkAddedToGlobal(lmId)){
+            estimator.removeObservationFromGlobal(lmId, currentFrameId, im, idxB);
           }
         }
       }
