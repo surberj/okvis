@@ -94,6 +94,15 @@ class VioKeyframeWindowMatchingAlgorithm : public okvis::MatchingAlgorithm {
   void setFrames(uint64_t mfIdA, uint64_t mfIdB, size_t camIdA, size_t camIdB);
 
   /**
+   * @brief Set which frames to match.
+   * @param mfIdA   The multiframe ID to match against.
+   * @param mfIdB   The new multiframe ID.
+   * @param camIdA  ID of the frame inside multiframe A to match.
+   * @param camIdB  ID of the frame inside multiframe B to match.
+   */
+  void setFramesInGlobalEstimator(uint64_t mfIdA, uint64_t mfIdB, size_t camIdA, size_t camIdB);
+
+  /**
    * \brief Set the matching type.
    * \see MatchingTypes
    */
@@ -101,6 +110,9 @@ class VioKeyframeWindowMatchingAlgorithm : public okvis::MatchingAlgorithm {
 
   /// \brief This will be called exactly once for each call to DenseMatcher::match().
   virtual void doSetup();
+
+  /// \brief This will be called exactly once for each call to DenseMatcher::match().
+  virtual void doSetupInGlobalEstimator();
 
   /// \brief What is the size of list A?
   virtual size_t sizeA() const;

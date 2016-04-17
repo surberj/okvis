@@ -2331,6 +2331,18 @@ bool Estimator::getLandmark(uint64_t landmarkId,
   mapPoint = landmarksMap_.at(landmarkId);
   return true;
 }
+// Get a specific landmark.
+bool Estimator::getLandmarkFromGlobalEstimator(uint64_t landmarkId,
+                                    MapPoint& mapPoint) const
+{
+  std::lock_guard<std::mutex> l(globalstatesMutex_);
+  if (globallandmarksMap_.find(landmarkId) == globallandmarksMap_.end()) {
+    OKVIS_THROW_DBG(Exception,"landmark with id = "<<landmarkId<<" does not exist.")
+    return false;
+  }
+  mapPoint = globallandmarksMap_.at(landmarkId);
+  return true;
+}
 
 // Checks whether the landmark is initialized.
 bool Estimator::isLandmarkInitialized(uint64_t landmarkId) const {
@@ -2338,6 +2350,14 @@ bool Estimator::isLandmarkInitialized(uint64_t landmarkId) const {
                      "landmark not added");
   return std::static_pointer_cast<okvis::ceres::HomogeneousPointParameterBlock>(
       mapPtr_->parameterBlockPtr(landmarkId))->initialized();
+}
+
+// Checks whether the landmark is initialized.
+bool Estimator::isLandmarkInitializedInGlobalEstimator(uint64_t landmarkId) const {
+  OKVIS_ASSERT_TRUE_DBG(Exception, isLandmarkAddedToGlobal(landmarkId),
+                     "landmark not added");
+  return std::static_pointer_cast<okvis::ceres::HomogeneousPointParameterBlock>(
+      globalmapPtr_->parameterBlockPtr(landmarkId))->initialized();
 }
 
 // Get a copy of all the landmarks as a PointMap.
@@ -2406,6 +2426,15 @@ bool Estimator::getCameraSensorStates(
     okvis::kinematics::Transformation & T_SCi) const
 {
   return getSensorStateEstimateAs<ceres::PoseParameterBlock>(
+      poseId, cameraIdx, SensorStates::Camera, CameraSensorStates::T_SCi, T_SCi);
+}
+
+// Get camera states for a given pose ID.
+bool Estimator::getCameraSensorStatesFromGlobalEstimator(
+    uint64_t poseId, size_t cameraIdx,
+    okvis::kinematics::Transformation & T_SCi) const
+{
+  return getSensorStateEstimateFromGlobalEstimatorAs<ceres::PoseParameterBlock>(
       poseId, cameraIdx, SensorStates::Camera, CameraSensorStates::T_SCi, T_SCi);
 }
 
@@ -2737,6 +2766,26 @@ bool Estimator::getSensorStateParameterBlockPtr(
   stateParameterBlockPtr = mapPtr_->parameterBlockPtr(id);
   return true;
 }
+bool Estimator::getSensorStateParameterBlockFromGlobalEstimatorPtr(
+    uint64_t poseId, int sensorIdx, int sensorType, int stateType,
+    std::shared_ptr<ceres::ParameterBlock>& stateParameterBlockPtr) const
+{
+  // check existence in states set
+  if (globalstatesMap_.find(poseId) == globalstatesMap_.end()) {
+    OKVIS_THROW_DBG(Exception,"pose with id = "<<poseId<<" does not exist.")
+    return false;
+  }
+
+  // obtain the parameter block ID
+  uint64_t id = globalstatesMap_.at(poseId).sensors.at(sensorType).at(sensorIdx).at(
+      stateType).id;
+  if (!globalmapPtr_->parameterBlockExists(id)) {
+    OKVIS_THROW_DBG(Exception,"pose with id = "<<poseId<<" does not exist.")
+    return false;
+  }
+  stateParameterBlockPtr = globalmapPtr_->parameterBlockPtr(id);
+  return true;
+}
 template<class PARAMETER_BLOCK_T>
 bool Estimator::getSensorStateParameterBlockAs(
     uint64_t poseId, int sensorIdx, int sensorType, int stateType,
@@ -2766,12 +2815,53 @@ bool Estimator::getSensorStateParameterBlockAs(
   return true;
 }
 template<class PARAMETER_BLOCK_T>
+bool Estimator::getSensorStateParameterBlockFromGlobalEstimatorAs(
+    uint64_t poseId, int sensorIdx, int sensorType, int stateType,
+    PARAMETER_BLOCK_T & stateParameterBlock) const
+{
+  // convert base class pointer with various levels of checking
+  std::shared_ptr<ceres::ParameterBlock> parameterBlockPtr;
+  if (!getSensorStateParameterBlockFromGlobalEstimatorPtr(poseId, sensorIdx, sensorType, stateType,
+                                       parameterBlockPtr)) {
+    return false;
+  }
+#ifndef NDEBUG
+  std::shared_ptr<PARAMETER_BLOCK_T> derivedParameterBlockPtr =
+  std::dynamic_pointer_cast<PARAMETER_BLOCK_T>(parameterBlockPtr);
+  if(!derivedParameterBlockPtr) {
+    std::shared_ptr<PARAMETER_BLOCK_T> info(new PARAMETER_BLOCK_T);
+    OKVIS_THROW_DBG(Exception,"wrong pointer type requested: requested "
+                     <<info->typeInfo()<<" but is of type"
+                     <<parameterBlockPtr->typeInfo())
+    return false;
+  }
+  stateParameterBlock = *derivedParameterBlockPtr;
+#else
+  stateParameterBlock = *std::static_pointer_cast<PARAMETER_BLOCK_T>(
+      parameterBlockPtr);
+#endif
+  return true;
+}
+template<class PARAMETER_BLOCK_T>
 bool Estimator::getSensorStateEstimateAs(
     uint64_t poseId, int sensorIdx, int sensorType, int stateType,
     typename PARAMETER_BLOCK_T::estimate_t & state) const
 {
   PARAMETER_BLOCK_T stateParameterBlock;
   if (!getSensorStateParameterBlockAs(poseId, sensorIdx, sensorType, stateType,
+                                      stateParameterBlock)) {
+    return false;
+  }
+  state = stateParameterBlock.estimate();
+  return true;
+}
+template<class PARAMETER_BLOCK_T>
+bool Estimator::getSensorStateEstimateFromGlobalEstimatorAs(
+    uint64_t poseId, int sensorIdx, int sensorType, int stateType,
+    typename PARAMETER_BLOCK_T::estimate_t & state) const
+{
+  PARAMETER_BLOCK_T stateParameterBlock;
+  if (!getSensorStateParameterBlockFromGlobalEstimatorAs(poseId, sensorIdx, sensorType, stateType,
                                       stateParameterBlock)) {
     return false;
   }

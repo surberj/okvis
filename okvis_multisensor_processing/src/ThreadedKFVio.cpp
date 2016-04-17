@@ -792,12 +792,13 @@ void ThreadedKFVio::optimizationLoop() {
         keyframe_counter_++;
         //LOG(WARNING) << "add keyframe number " << keyframe_counter_ << " to global estimator";
         LOG(WARNING) << "landmarks local: " << estimator_.numLandmarks() << ", global: " << estimator_.numGlobalLandmarks();
-        // find additional matches (e.g. to close loops)
-//        frontend_.addMatches(estimator_, parameters_);
 
         // debug: run optimization every N keyframes:
-        int N = 20;
+        int N = 50;
         if (keyframe_counter_ % N == 0) {
+          // find additional matches (e.g. to close loops)
+          frontend_.addMatches(estimator_, parameters_);
+
           estimator_.optimizeGlobal(20, 2, true);
           estimator_.get_global_T_WS(estimator_.currentFrameId(), lastOptimized_T_WS_ref_);
           LOG(INFO) << "OKVIS pose: ";

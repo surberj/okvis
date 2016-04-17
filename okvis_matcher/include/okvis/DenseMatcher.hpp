@@ -78,6 +78,11 @@ class DenseMatcher {
   template<typename MATCHING_ALGORITHM_T>
   void match(MATCHING_ALGORITHM_T & matchingAlgorithm);
 
+  /// \brief Execute a matching algorithm. This is the fast, templated version. Use this.
+  /// \tparam MATCHING_ALGORITHM_T The algorithm to use. E.g. a class derived from MatchingAlgorithm
+  template<typename MATCHING_ALGORITHM_T>
+  void matchGlobal(MATCHING_ALGORITHM_T & matchingAlgorithm);
+
   /// \brief Execute a matching algorithm implementing image space matching
   /// (i.e. match landmarks with features in their image space vicinity)
   /// separate matching function for backwards compatability

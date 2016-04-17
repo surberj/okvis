@@ -135,6 +135,17 @@ void DenseMatcher::match(MATCHING_ALGORITHM_T & matchingAlgorithm) {
             matchingAlgorithm);
 }
 
+// Execute a matching algorithm. This is the fast, templated version. Use this.
+template<typename MATCHING_ALGORITHM_T>
+void DenseMatcher::matchGlobal(MATCHING_ALGORITHM_T & matchingAlgorithm) {
+  typedef MATCHING_ALGORITHM_T matching_algorithm_t;
+  matchingAlgorithm.doSetupInGlobalEstimator();
+
+  // call the matching body with the linear matching function pointer
+  matchBody(&DenseMatcher::template doWorkLinearMatching<matching_algorithm_t>,
+            matchingAlgorithm);
+}
+
 // Execute a matching algorithm implementing image space matching.
 template<typename MATCHING_ALGORITHM_T>
 void DenseMatcher::matchInImageSpace(MATCHING_ALGORITHM_T & matchingAlgorithm) {

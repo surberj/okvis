@@ -109,7 +109,7 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setFrames(
 
   validRelativeUncertainty_ = false;
 }
-/*
+
 // Set which frames to match.
 template<class CAMERA_GEOMETRY_T>
 void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setFramesInGlobalEstimator(
@@ -135,8 +135,8 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setFramesInGlobalEst
   // TODO donno, if and what we need here - I'll see
   estimator_->getCameraSensorStatesFromGlobalEstimator(mfIdA_, camIdA, T_SaCa_);
   estimator_->getCameraSensorStatesFromGlobalEstimator(mfIdB_, camIdB, T_SbCb_);
-  estimator_->get_T_WS_FromGlobalEstimator(mfIdA_, T_WSa_);
-  estimator_->get_T_WS_FromGlobalEstimator(mfIdB_, T_WSb_);
+  estimator_->get_global_T_WS(mfIdA_, T_WSa_);
+  estimator_->get_global_T_WS(mfIdB_, T_WSb_);
   T_SaW_ = T_WSa_.inverse();
   T_SbW_ = T_WSb_.inverse();
   T_WCa_ = T_WSa_ * T_SaCa_;
@@ -148,7 +148,7 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setFramesInGlobalEst
 
   validRelativeUncertainty_ = false;
 }
-*/
+
 // Set the matching type.
 template<class CAMERA_GEOMETRY_T>
 void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setMatchingType(
@@ -307,6 +307,164 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::doSetup() {
       if (estimator_->isLandmarkAdded(frameB_->landmarkId(camIdB_, k))) {
         skipB_.push_back(
             estimator_->isLandmarkInitialized(frameB_->landmarkId(camIdB_, k)));  // old: isSet - check.
+      } else {
+        skipB_.push_back(false);
+      }
+    }
+  }
+
+}
+
+// This will be called exactly once for each call to DenseMatcher::matchInGlobalEstimator().
+template<class CAMERA_GEOMETRY_T>
+void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::doSetupInGlobalEstimator() {
+
+  // setup stereo triangulator
+  // first, let's get the relative uncertainty.
+  okvis::kinematics::Transformation T_CaCb;
+  Eigen::Matrix<double, 6, 6> UOplus = Eigen::Matrix<double, 6, 6>::Zero();
+  if (usePoseUncertainty_) {
+    OKVIS_THROW(Exception, "No pose uncertainty use currently supported");
+  } else {
+    UOplus.setIdentity();
+    UOplus.bottomRightCorner<3, 3>() *= 1e-8;
+    uint64_t currentId = estimator_->currentFrameId();
+    if (estimator_->isInImuWindow(currentId) && (mfIdA_ != mfIdB_)) {
+      okvis::SpeedAndBias speedAndBias;
+      estimator_->getSpeedAndBias(currentId, 0, speedAndBias);
+      double scale = std::max(1.0, speedAndBias.head<3>().norm());
+      UOplus.topLeftCorner<3, 3>() *= (scale * scale) * 1.0e-2;
+    } else {
+      UOplus.topLeftCorner<3, 3>() *= 4e-8;
+    }
+  }
+
+  // now set the frames and uncertainty
+  probabilisticStereoTriangulator_.resetFrames(frameA_, frameB_, camIdA_,
+                                               camIdB_, T_CaCb_, UOplus);
+
+  // reset the match counter
+  numMatches_ = 0;
+  numUncertainMatches_ = 0;
+
+  const size_t numA = frameA_->numKeypoints(camIdA_);
+  skipA_.clear();
+  skipA_.resize(numA, false);
+  raySigmasA_.resize(numA);
+  // calculate projections only once
+  if (matchingType_ == Match3D2D) {
+    // allocate a matrix to store projections
+    projectionsIntoB_ = Eigen::Matrix<double, Eigen::Dynamic, 2>::Zero(sizeA(),
+                                                                       2);
+    projectionsIntoBUncertainties_ =
+        Eigen::Matrix<double, Eigen::Dynamic, 2>::Zero(sizeA() * 2, 2);
+
+    // do the projections for each keypoint, if applicable
+    for (size_t k = 0; k < numA; ++k) {
+      uint64_t lm_id = frameA_->landmarkId(camIdA_, k);
+
+      if (lm_id == 0 || !estimator_->isLandmarkAddedToGlobal(lm_id)) {
+        // this can happen, if you called the 2D-2D version just before,
+        // without inserting the landmark into the graph
+        skipA_[k] = true;
+        continue;
+      }
+
+      okvis::MapPoint landmark;
+      estimator_->getLandmarkFromGlobalEstimator(lm_id, landmark);
+      Eigen::Vector4d hp_W = landmark.point;
+
+      if (!estimator_->isLandmarkInitializedInGlobalEstimator(lm_id)) {
+        skipA_[k] = true;
+        continue;
+      }
+
+      // project (distorted)
+      Eigen::Vector2d kptB;
+      const Eigen::Vector4d hp_Cb = T_CbW_ * hp_W;
+      if (frameB_->geometryAs<CAMERA_GEOMETRY_T>(camIdB_)->projectHomogeneous(
+          hp_Cb, &kptB)
+          != okvis::cameras::CameraBase::ProjectionStatus::Successful) {
+        skipA_[k] = true;
+        continue;
+      }
+
+      if (landmark.observations.size() < 2) {
+        estimator_->setLandmarkInitializedInGlobalEstimator(lm_id, false);
+        skipA_[k] = true;
+        continue;
+      }
+
+      // project and get uncertainty
+      Eigen::Matrix<double, 2, 4> jacobian;
+      Eigen::Matrix4d P_C = Eigen::Matrix4d::Zero();
+      P_C.topLeftCorner<3, 3>() = UOplus.topLeftCorner<3, 3>();  // get from before -- velocity scaled
+      frameB_->geometryAs<CAMERA_GEOMETRY_T>(camIdB_)->projectHomogeneous(
+          hp_Cb, &kptB, &jacobian);
+      projectionsIntoBUncertainties_.block<2, 2>(2 * k, 0) = jacobian * P_C
+          * jacobian.transpose();
+      projectionsIntoB_.row(k) = kptB;
+
+      // precalculate ray uncertainties
+      double keypointAStdDev;
+      frameA_->getKeypointSize(camIdA_, k, keypointAStdDev);
+      keypointAStdDev = 0.8 * keypointAStdDev / 12.0;
+      raySigmasA_[k] = sqrt(sqrt(2)) * keypointAStdDev / fA_;  // (sqrt(MeasurementCovariance.norm()) / _fA)
+    }
+  } else {
+    for (size_t k = 0; k < numA; ++k) {
+      double keypointAStdDev;
+      frameA_->getKeypointSize(camIdA_, k, keypointAStdDev);
+      keypointAStdDev = 0.8 * keypointAStdDev / 12.0;
+      raySigmasA_[k] = sqrt(sqrt(2)) * keypointAStdDev / fA_;
+      if (frameA_->landmarkId(camIdA_, k) == 0) {
+        continue;
+      }
+      if (estimator_->isLandmarkAddedToGlobal(frameA_->landmarkId(camIdA_, k))) {
+        if (estimator_->isLandmarkInitializedInGlobalEstimator(
+            frameA_->landmarkId(camIdA_, k))) {
+          skipA_[k] = true;
+        }
+      }
+    }
+  }
+  const size_t numB = frameB_->numKeypoints(camIdB_);
+  skipB_.clear();
+  skipB_.reserve(numB);
+  raySigmasB_.resize(numB);
+  // do the projections for each keypoint, if applicable
+  if (matchingType_ == Match3D2D) {
+    for (size_t k = 0; k < numB; ++k) {
+      okvis::MapPoint landmark;
+      if (frameB_->landmarkId(camIdB_, k) != 0
+          && estimator_->isLandmarkAddedToGlobal(frameB_->landmarkId(camIdB_, k))) {
+        estimator_->getLandmark(frameB_->landmarkId(camIdB_, k), landmark);
+        skipB_.push_back(
+            landmark.observations.find(
+                okvis::KeypointIdentifier(mfIdB_, camIdB_, k))
+                != landmark.observations.end());
+      } else {
+        skipB_.push_back(false);
+      }
+      double keypointBStdDev;
+      frameB_->getKeypointSize(camIdB_, k, keypointBStdDev);
+      keypointBStdDev = 0.8 * keypointBStdDev / 12.0;
+      raySigmasB_[k] = sqrt(sqrt(2)) * keypointBStdDev / fB_;
+    }
+  } else {
+    for (size_t k = 0; k < numB; ++k) {
+      double keypointBStdDev;
+      frameB_->getKeypointSize(camIdB_, k, keypointBStdDev);
+      keypointBStdDev = 0.8 * keypointBStdDev / 12.0;
+      raySigmasB_[k] = sqrt(sqrt(2)) * keypointBStdDev / fB_;
+
+      if (frameB_->landmarkId(camIdB_, k) == 0) {
+        skipB_.push_back(false);
+        continue;
+      }
+      if (estimator_->isLandmarkAddedToGlobal(frameB_->landmarkId(camIdB_, k))) {
+        skipB_.push_back(
+            estimator_->isLandmarkInitializedInGlobalEstimator(frameB_->landmarkId(camIdB_, k)));  // old: isSet - check.
       } else {
         skipB_.push_back(false);
       }

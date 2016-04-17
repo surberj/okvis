@@ -110,6 +110,17 @@ class Frontend : public VioFrontendInterface {
       std::shared_ptr<okvis::MultiFrame> framesInOut, bool* asKeyframe);
 
   /**
+   * @brief Adding of additional Matches to the global estimator.
+   * @warning This method is not threadsafe.
+   * @warning This method uses the estimator. Make sure to not access it in another thread.
+   * @param estimator       Estimator.
+   * @return True if successful.
+   */
+  virtual bool addMatches(
+      okvis::Estimator& estimator,
+      const okvis::VioParameters & params);
+
+  /**
    * @brief Propagates pose, speeds and biases with given IMU measurements.
    * @see okvis::ceres::ImuError::propagation()
    * @remark This method is threadsafe.
@@ -366,6 +377,23 @@ class Frontend : public VioFrontendInterface {
                        const uint64_t currentFrameId,
                        bool usePoseUncertainty = true,
                        bool removeOutliers = true);
+
+  /**
+   * @brief Match two keyframes in global estimator.
+   * @tparam MATCHING_ALGORITHM Algorithm to match new keypoints to existing landmarks
+   * @warning As this function uses the estimator it is not threadsafe.
+   * @param estimator           Estimator.
+   * @param params              Parameter struct.
+   * @param currentFrameId      ID of the current frame that should be matched against the last one.
+   * @param usePoseUncertainty  Use the pose uncertainty for the matching.
+   * @param removeOutliers      Remove outliers during RANSAC.
+   * @return The number of matches in total.
+   */
+  template<class MATCHING_ALGORITHM>
+  int matchTwoKeyframesInGlobalEstimator(okvis::Estimator& estimator,
+                       const okvis::VioParameters& params,
+                       const uint64_t firstFrameId,
+                       const uint64_t secondFrameId);
 
   /**
    * @brief Match the frames inside the multiframe to each other to initialise new landmarks.

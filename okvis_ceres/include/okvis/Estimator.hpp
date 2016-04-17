@@ -306,6 +306,13 @@ class Estimator : public VioBackendInterface
    */
   bool isLandmarkInitialized(uint64_t landmarkId) const;
 
+  /**
+   * @brief Checks whether the landmark is initialized.
+   * @param landmarkId The ID.
+   * @return True if initialised.
+   */
+  bool isLandmarkInitializedInGlobalEstimator(uint64_t landmarkId) const;
+
   /// @name Getters
   ///\{
   /**
@@ -315,6 +322,16 @@ class Estimator : public VioBackendInterface
    * @return True if successful.
    */
   bool getLandmark(uint64_t landmarkId, okvis::MapPoint& mapPoint) const;
+
+  /// @name Getters
+  ///\{
+  /**
+   * @brief Get a specific landmark.
+   * @param[in]  landmarkId ID of desired landmark.
+   * @param[out] mapPoint Landmark information, such as quality, coordinates etc.
+   * @return True if successful.
+   */
+  bool getLandmarkFromGlobalEstimator(uint64_t landmarkId, okvis::MapPoint& mapPoint) const;
 
   /**
    * @brief Get a copy of all the landmarks as a PointMap.
@@ -341,6 +358,17 @@ class Estimator : public VioBackendInterface
     OKVIS_ASSERT_TRUE_DBG(Exception, multiFramePtrMap_.find(frameId)!=multiFramePtrMap_.end(),
                        "Requested multi-frame does not exist in estimator.");
     return multiFramePtrMap_.at(frameId);
+  }
+
+  /**
+   * @brief Get a multiframe.
+   * @param frameId ID of desired multiframe.
+   * @return Shared pointer to multiframe.
+   */
+  okvis::MultiFramePtr multiFrameFromGlobalEstimator(uint64_t frameId) const {
+    OKVIS_ASSERT_TRUE_DBG(Exception, globalmultiFramePtrMap_.find(frameId)!=globalmultiFramePtrMap_.end(),
+                       "Requested multi-frame does not exist in estimator.");
+    return globalmultiFramePtrMap_.at(frameId);
   }
 
   /**
@@ -382,10 +410,27 @@ class Estimator : public VioBackendInterface
   bool getCameraSensorStates(uint64_t poseId, size_t cameraIdx,
                               okvis::kinematics::Transformation & T_SCi) const;
 
+  /**
+   * @brief Get camera states for a given pose ID.
+   * @warning This accesses the optimization graph, so not very fast.
+   * @param[in]  poseId ID of pose to get camera state for.
+   * @param[in]  cameraIdx index of camera to get state for.
+   * @param[out] T_SCi Homogeneous transformation from sensor (IMU) frame to camera frame.
+   * @return True if successful.
+   */
+  bool getCameraSensorStatesFromGlobalEstimator(uint64_t poseId, size_t cameraIdx,
+                              okvis::kinematics::Transformation & T_SCi) const;
+
   /// @brief Get the number of states/frames in the estimator.
   /// \return The number of frames.
   size_t numFrames() const {
     return statesMap_.size();
+  }
+
+  /// @brief Get the number of states/frames in the estimator.
+  /// \return The number of frames.
+  size_t numFramesInGlobalEstimator() const {
+    return globalstatesMap_.size();
   }
 
   /// @brief Get the number of landmarks in the estimator
@@ -439,7 +484,7 @@ class Estimator : public VioBackendInterface
    * @return True if the frame is a keyframe.
    */
   bool isKeyframeInGlobalEstimator(uint64_t frameId) const {
-    return statesMap_.at(frameId).isKeyframe;
+    return globalstatesMap_.at(frameId).isKeyframe;
   }
 
   /**
@@ -684,12 +729,22 @@ class Estimator : public VioBackendInterface
   bool getSensorStateParameterBlockPtr(uint64_t poseId, int sensorIdx,
                                     int sensorType, int stateType,
                                     std::shared_ptr<ceres::ParameterBlock>& stateParameterBlockPtr) const;
+  bool getSensorStateParameterBlockFromGlobalEstimatorPtr(uint64_t poseId, int sensorIdx,
+                                    int sensorType, int stateType,
+                                    std::shared_ptr<ceres::ParameterBlock>& stateParameterBlockPtr) const;
   template<class PARAMETER_BLOCK_T>
   bool getSensorStateParameterBlockAs(uint64_t poseId, int sensorIdx,
                                       int sensorType, int stateType,
                                       PARAMETER_BLOCK_T & stateParameterBlock) const;
   template<class PARAMETER_BLOCK_T>
+  bool getSensorStateParameterBlockFromGlobalEstimatorAs(uint64_t poseId, int sensorIdx,
+                                      int sensorType, int stateType,
+                                      PARAMETER_BLOCK_T & stateParameterBlock) const;
+  template<class PARAMETER_BLOCK_T>
   bool getSensorStateEstimateAs(uint64_t poseId, int sensorIdx, int sensorType,
+                                int stateType, typename PARAMETER_BLOCK_T::estimate_t & state) const;
+  template<class PARAMETER_BLOCK_T>
+  bool getSensorStateEstimateFromGlobalEstimatorAs(uint64_t poseId, int sensorIdx, int sensorType,
                                 int stateType, typename PARAMETER_BLOCK_T::estimate_t & state) const;
 
   // setters

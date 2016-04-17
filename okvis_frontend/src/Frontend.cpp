@@ -112,17 +112,24 @@ bool Frontend::detectAndDescribe(size_t cameraIndex,
   // set detector/extractor to nullpointer? TODO
   return true;
 }
-/*
+
 // Find additional Matches across global estimator and add Observations to the optimization.
 bool Frontend::addMatches(
     okvis::Estimator& estimator,
     const okvis::VioParameters &params) {
+  // find distortion type
+  okvis::cameras::NCameraSystem::DistortionType distortionType = params.nCameraSystem
+      .distortionType(0);
+  for (size_t i = 1; i < params.nCameraSystem.numCameras(); ++i) {
+    OKVIS_ASSERT_TRUE(Exception,
+                      distortionType == params.nCameraSystem.distortionType(i),
+                      "mixed frame types are not supported yet");
+  }
 
   // match newest 20 to first 20 keyframes (2D2D)
-  int N = 20;
-  size_t newFrameCounter = 0;
-  size_t oldFrameCounter = 0;
+  size_t N = 20;
   // loop through new frames:
+  size_t newFrameCounter = 0;
   for (size_t age = 1; newFrameCounter < N; ++age) {
     uint64_t newFrameID = estimator.frameIdByAgeInGlobalEstimator(age);
     if (!estimator.isKeyframeInGlobalEstimator(newFrameID))
@@ -130,27 +137,51 @@ bool Frontend::addMatches(
     newFrameCounter++;
 
     // loop through old frames:
+    size_t oldFrameCounter = 0;
     for (size_t oldage = 1; oldFrameCounter < N; ++oldage) {
       uint64_t oldFrameID = estimator.frameIdByAgeInGlobalEstimator(estimator.numFramesInGlobalEstimator() - oldage);
       if (!estimator.isKeyframeInGlobalEstimator(oldFrameID))
         continue;
       oldFrameCounter++;
 
+      int numMatches = 0;
       // match the two frames
-      for (size_t im = 0; im < params.nCameraSystem.numCameras(); ++im) {
-        MATCHING_ALGORITHM matchingAlgorithm(estimator,
-                                             MATCHING_ALGORITHM::Match2D2D,
-                                             briskMatchingThreshold_,
-                                             false);
-        matchingAlgorithm.setFramesInGlobalEstimator(oldFrameId, newFrameId, im, im);
-
-        // match 2D-2D
-        matcher_->match<MATCHING_ALGORITHM>(matchingAlgorithm);
+      switch (distortionType) {
+      case okvis::cameras::NCameraSystem::RadialTangential: {
+        numMatches = matchTwoKeyframesInGlobalEstimator<
+            VioKeyframeWindowMatchingAlgorithm<
+                okvis::cameras::PinholeCamera<
+                    okvis::cameras::RadialTangentialDistortion> > >(
+            estimator, params, oldFrameID, newFrameID);
+        break;
       }
+      case okvis::cameras::NCameraSystem::Equidistant: {
+        numMatches = matchTwoKeyframesInGlobalEstimator<
+            VioKeyframeWindowMatchingAlgorithm<
+                okvis::cameras::PinholeCamera<
+                    okvis::cameras::EquidistantDistortion> > >(
+            estimator, params, oldFrameID, newFrameID);
+        break;
+      }
+      case okvis::cameras::NCameraSystem::RadialTangential8: {
+        numMatches = matchTwoKeyframesInGlobalEstimator<
+            VioKeyframeWindowMatchingAlgorithm<
+                okvis::cameras::PinholeCamera<
+                    okvis::cameras::RadialTangentialDistortion8> > >(
+            estimator, params, oldFrameID, newFrameID);
+        break;
+      }
+      default:
+        OKVIS_THROW(Exception, "Unsupported distortion type.")
+        break;
+    }
+    //LOG(WARNING) << "matching between frame " << oldFrameID << " and " << newFrameID << " not yet implemented.";
+    LOG(WARNING) << numMatches << " matches between " << oldFrameID << " and " << newFrameID;
     }
   }
+  return true;
 }
-*/
+
 // Matching as well as initialization of landmarks and state.
 bool Frontend::dataAssociationAndInitialization(
     okvis::Estimator& estimator,
@@ -496,6 +527,29 @@ int Frontend::matchToKeyframes(okvis::Estimator& estimator,
     *uncertainMatchFraction = double(numUncertainMatches) / double(retCtr);
   }
 
+  return retCtr;
+}
+
+// Match a new multiframe to existing keyframes
+template<class MATCHING_ALGORITHM>
+int Frontend::matchTwoKeyframesInGlobalEstimator(okvis::Estimator& estimator,
+                               const okvis::VioParameters & params,
+                               const uint64_t firstFrameId,
+                               const uint64_t secondFrameId) {
+
+  int retCtr = 0;
+  for (size_t im = 0; im < params.nCameraSystem.numCameras(); ++im) {
+    MATCHING_ALGORITHM matchingAlgorithm(estimator,
+                                         MATCHING_ALGORITHM::Match2D2D,
+                                         briskMatchingThreshold_,
+                                         false);
+    matchingAlgorithm.setFramesInGlobalEstimator(firstFrameId, secondFrameId, im, im);
+
+    // match 2D-2D
+    matcher_->match<MATCHING_ALGORITHM>(matchingAlgorithm);
+
+    retCtr += matchingAlgorithm.numMatches();
+  }
   return retCtr;
 }
 
