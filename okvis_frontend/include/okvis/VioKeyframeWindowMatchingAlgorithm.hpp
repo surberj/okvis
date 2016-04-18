@@ -166,6 +166,10 @@ class VioKeyframeWindowMatchingAlgorithm : public okvis::MatchingAlgorithm {
   ///        for each pair of matches discovered.
   virtual void setBestMatch(size_t indexA, size_t indexB, double distance);
 
+  /// \brief At the end of the matching step, this function is called once
+  ///        for each pair of matches discovered.
+  virtual void setBestMatchInGlobalEstimator(size_t indexA, size_t indexB, double distance);
+
   /// \brief Get the number of matches.
   size_t numMatches();
   /// \brief Get the number of uncertain matches.

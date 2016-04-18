@@ -794,7 +794,7 @@ void ThreadedKFVio::optimizationLoop() {
         LOG(WARNING) << "landmarks local: " << estimator_.numLandmarks() << ", global: " << estimator_.numGlobalLandmarks();
 
         // debug: run optimization every N keyframes:
-        int N = 50;
+        int N = 51;
         if (keyframe_counter_ % N == 0) {
           // find additional matches (e.g. to close loops)
           frontend_.addMatches(estimator_, parameters_);

@@ -160,6 +160,17 @@ class DenseMatcher {
       MATCHING_ALGORITHM_T& matchingAlgorithm);
 
   /**
+   * @brief This function creates all the matching threads and assigns the best matches afterwards.
+   * @tparam MATCHING_ALGORITHM_T The algorithm to use. E.g. a class derived from MatchingAlgorithm
+   * @param doWorkPtr The function that the threads are going to run.
+   * @param matchingAlgorithm The matching algorithm.
+   */
+  template<typename MATCHING_ALGORITHM_T>
+  void matchBodyGlobal(
+      void (DenseMatcher::*doWorkPtr)(MatchJob&, MATCHING_ALGORITHM_T*),
+      MATCHING_ALGORITHM_T& matchingAlgorithm);
+
+  /**
    * @brief The threading worker. This matches a keypoint with every other keypoint to find the best match.
    * @tparam MATCHING_ALGORITHM_T The algorithm to use. E.g. a class derived from MatchingAlgorithm.
    * @param my_job Struct with information about the job.

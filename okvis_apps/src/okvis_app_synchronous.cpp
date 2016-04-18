@@ -380,9 +380,14 @@ int main(int argc, char **argv)
     okvis::Time t;
 
     for (size_t i = 0; i < numCameras; ++i) {
-      cv::Mat filtered = cv::imread(
+      cv::Mat raw = cv::imread(
           path + "/cam" + std::to_string(i) + "/data/" + *cam_iterators.at(i),
           cv::IMREAD_GRAYSCALE);
+      cv::Mat cv_img_eq;
+      cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
+      clahe->setClipLimit(4);
+      clahe->apply(raw, cv_img_eq);
+      cv::Mat filtered = cv_img_eq.clone();
       std::string nanoseconds = cam_iterators.at(i)->substr(
           cam_iterators.at(i)->size() - 13, 9);
       std::string seconds = cam_iterators.at(i)->substr(

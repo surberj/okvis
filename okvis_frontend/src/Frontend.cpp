@@ -127,7 +127,7 @@ bool Frontend::addMatches(
   }
 
   // match newest 20 to first 20 keyframes (2D2D)
-  size_t N = 20;
+  size_t N = 10;
   // loop through new frames:
   size_t newFrameCounter = 0;
   for (size_t age = 1; newFrameCounter < N; ++age) {
@@ -540,13 +540,13 @@ int Frontend::matchTwoKeyframesInGlobalEstimator(okvis::Estimator& estimator,
   int retCtr = 0;
   for (size_t im = 0; im < params.nCameraSystem.numCameras(); ++im) {
     MATCHING_ALGORITHM matchingAlgorithm(estimator,
-                                         MATCHING_ALGORITHM::Match2D2D,
+                                         MATCHING_ALGORITHM::Match3D2D,
                                          briskMatchingThreshold_,
                                          false);
     matchingAlgorithm.setFramesInGlobalEstimator(firstFrameId, secondFrameId, im, im);
 
     // match 2D-2D
-    matcher_->match<MATCHING_ALGORITHM>(matchingAlgorithm);
+    matcher_->matchGlobal<MATCHING_ALGORITHM>(matchingAlgorithm);
 
     retCtr += matchingAlgorithm.numMatches();
   }

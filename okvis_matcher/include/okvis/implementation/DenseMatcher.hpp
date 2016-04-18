@@ -124,6 +124,87 @@ void DenseMatcher::matchBody(
   delete[] locks;
 }
 
+// This function creates all the matching threads and assigns the best matches afterwards.
+template<typename MATCHING_ALGORITHM_T>
+void DenseMatcher::matchBodyGlobal(
+    void (DenseMatcher::*doWorkPtr)(MatchJob&, MATCHING_ALGORITHM_T*),
+    MATCHING_ALGORITHM_T& matchingAlgorithm) {
+  // create lock list
+  std::mutex* locks = new std::mutex[matchingAlgorithm.sizeB()];
+
+  //the pairing list
+  pairing_list_t vpairs;
+  // a list with best matches for each "A" point
+  std::vector<std::vector<pairing_t> > vMyBest;
+
+  vMyBest.resize(matchingAlgorithm.sizeA());
+
+  // this point is not paired so far, score max
+  vpairs.resize(matchingAlgorithm.sizeB(),
+                pairing_t(-1, std::numeric_limits<distance_t>::max()));
+
+  // prepare the jobs for the threads
+  std::vector<MatchJob> jobs(numMatcherThreads_);
+  for (int i = 0; i < numMatcherThreads_; ++i) {
+    jobs[i].iThreadID = i;
+    jobs[i].vpairs = &vpairs;
+    jobs[i].vMyBest = &vMyBest;
+    jobs[i].mutexes = locks;
+  }
+
+  //create all threads
+  //  boost::thread_group matchers;
+  for (int i = 0; i < numMatcherThreads_; ++i) {
+    matcherThreadPool_->enqueue(doWorkPtr, this, jobs[i], &matchingAlgorithm);
+    //    matchers.create_thread(boost::bind(doWorkPtr, this, jobs[i], &matchingAlgorithm));
+  }
+
+  //  matchers.join_all();
+  matcherThreadPool_->waitForEmptyQueue();
+
+  // Looks like running this in one thread is faster than creating 30+ new threads for every image.
+  //TODO(gohlp): distribute this to n threads.
+
+  //  for (int i = 0; i < _numMatcherThreads; ++i)
+  //  {
+  //    (this->*doWorkPtr)(jobs[i], &matchingAlgorithm);
+  //  }
+
+  matchingAlgorithm.reserveMatches(vpairs.size());
+
+  // assemble the pairs and return
+  const distance_t& const_distratiothres = matchingAlgorithm.distanceRatioThreshold();
+  const distance_t& const_distthres = matchingAlgorithm.distanceThreshold();
+  for (size_t i = 0; i < vpairs.size(); ++i) {
+    if (useDistanceRatioThreshold_ && vpairs[i].distance < const_distthres) {
+      const std::vector<pairing_t>& best_matches_list =
+          vMyBest[vpairs[i].indexA];
+      OKVIS_ASSERT_TRUE_DBG(Exception, best_matches_list[0].indexA != -1,
+                            "assertion failed");
+
+      if (best_matches_list[1].indexA != -1) {
+        const distance_t& best_match_distance = best_matches_list[0].distance;
+        const distance_t& second_best_match_distance = best_matches_list[1]
+            .distance;
+        // Only assign if the distance ratio better than the threshold.
+        if (best_match_distance == 0
+            || second_best_match_distance / best_match_distance
+                > const_distratiothres) {
+          matchingAlgorithm.setBestMatchInGlobalEstimator(vpairs[i].indexA, i,
+                                         vpairs[i].distance);
+        }
+      } else {
+        // If there is only one matching feature, we assign it.
+        matchingAlgorithm.setBestMatchInGlobalEstimator(vpairs[i].indexA, i, vpairs[i].distance);
+      }
+    } else if (vpairs[i].distance < const_distthres) {
+      matchingAlgorithm.setBestMatchInGlobalEstimator(vpairs[i].indexA, i, vpairs[i].distance);
+    }
+  }
+
+  delete[] locks;
+}
+
 // Execute a matching algorithm. This is the fast, templated version. Use this.
 template<typename MATCHING_ALGORITHM_T>
 void DenseMatcher::match(MATCHING_ALGORITHM_T & matchingAlgorithm) {
@@ -142,7 +223,7 @@ void DenseMatcher::matchGlobal(MATCHING_ALGORITHM_T & matchingAlgorithm) {
   matchingAlgorithm.doSetupInGlobalEstimator();
 
   // call the matching body with the linear matching function pointer
-  matchBody(&DenseMatcher::template doWorkLinearMatching<matching_algorithm_t>,
+  matchBodyGlobal(&DenseMatcher::template doWorkLinearMatching<matching_algorithm_t>,
             matchingAlgorithm);
 }
 
