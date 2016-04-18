@@ -306,6 +306,10 @@ include_directories(okvis_multisensor_processing/include)
 add_subdirectory(okvis_multisensor_processing)
 add_dependencies(okvis_multisensor_processing okvis_util)
 
+include_directories(okvis_reference_map/include)
+add_subdirectory(okvis_reference_map)
+add_dependencies(okvis_reference_map okvis_cv okvis_ceres)
+
 # also build the apps
 if(BUILD_APPS)
   FIND_PACKAGE(Boost COMPONENTS filesystem system REQUIRED)
@@ -318,6 +322,7 @@ if(BUILD_APPS)
     okvis_cv 
     okvis_common
     okvis_ceres
+    okvis_reference_map
     okvis_timing
     okvis_matcher
     okvis_frontend 
@@ -343,6 +348,7 @@ export (TARGETS
     okvis_cv 
     okvis_common
     okvis_ceres
+    okvis_reference_map
     okvis_timing
     okvis_matcher
     okvis_frontend 
@@ -361,6 +367,7 @@ set(CONF_INCLUDE_DIRS
   "${PROJECT_SOURCE_DIR}/okvis_cv/include"
   "${PROJECT_SOURCE_DIR}/okvis_common/include"
   "${PROJECT_SOURCE_DIR}/okvis_ceres/include"
+  "${PROJECT_SOURCE_DIR}/okvis_reference_map/include"
   "${PROJECT_SOURCE_DIR}/okvis_timing/include"
   "${PROJECT_SOURCE_DIR}/okvis_matcher/include"
   "${PROJECT_SOURCE_DIR}/okvis_frontend/include"

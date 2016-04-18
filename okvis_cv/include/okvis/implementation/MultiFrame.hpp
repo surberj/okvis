@@ -269,5 +269,16 @@ size_t MultiFrame::numKeypoints() const
   return numKeypoints;
 }
 
+std::set<uint64_t> MultiFrame::getAllLandmarkIds() {
+  std::set<uint64_t> landmarks(frames_[0].getLandmarkIds()->begin(), frames_[0].getLandmarkIds()->end());
+  // If there's only one frame, its easy
+  if (numFrames() < 2)
+    return landmarks;
+
+  for (size_t i = 1; i < numFrames(); ++i) {
+    landmarks.insert(frames_[i].getLandmarkIds()->begin(), frames_[i].getLandmarkIds()->end());
+  }
+  return landmarks;
+}
 
 }// namespace okvis
