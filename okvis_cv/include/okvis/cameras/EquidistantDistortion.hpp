@@ -101,6 +101,12 @@ class EquidistantDistortion : public DistortionBase
         new EquidistantDistortion(-0.21, 0.14, 0.0006, 0.0003));
   }
   /// \brief Unit test support -- create a test distortion object
+  static std::shared_ptr<DistortionBase> createUnispitalObject()
+  {
+    return std::shared_ptr<DistortionBase>(
+        new EquidistantDistortion(-0.012335902906236285, 0.102035229649109, -0.23372037878800508, 0.21265653717502944));
+  }
+  /// \brief Unit test support -- create a test distortion object
   static EquidistantDistortion testObject()
   {
     return EquidistantDistortion(-0.21, 0.14, 0.0006, 0.0003);

@@ -257,6 +257,12 @@ const unsigned char * Frame::keypointDescriptor(size_t keypointIdx)
 #endif
 }
 
+// obtain the descriptors
+const cv::Mat & Frame::descriptors() const
+{
+  return descriptors_;
+}
+
 // Set the landmark ID
 bool Frame::setLandmarkId(size_t keypointIdx, uint64_t landmarkId)
 {

@@ -16,7 +16,7 @@ option (USE_SYSTEM_CERES
 option (BUILD_APPS
         "Builds a demo app (which requires boost)" ON) 
 option (BUILD_TESTS
-        "Builds all gtests" OFF) 
+        "Builds all gtests" ON) 
 SET(N_CORES 3 CACHE STRING "Using N number of cores for parallel build")
 
 # Offer the user the choice of overriding the installation directories
@@ -310,6 +310,10 @@ include_directories(okvis_reference_map/include)
 add_subdirectory(okvis_reference_map)
 add_dependencies(okvis_reference_map okvis_cv okvis_ceres)
 
+include_directories(okvis_reference_matcher/include)
+add_subdirectory(okvis_reference_matcher)
+add_dependencies(okvis_reference_matcher okvis_cv okvis_ceres)
+
 # also build the apps
 if(BUILD_APPS)
   FIND_PACKAGE(Boost COMPONENTS filesystem system REQUIRED)
@@ -323,6 +327,7 @@ if(BUILD_APPS)
     okvis_common
     okvis_ceres
     okvis_reference_map
+    okvis_reference_matcher
     okvis_timing
     okvis_matcher
     okvis_frontend 
@@ -349,6 +354,7 @@ export (TARGETS
     okvis_common
     okvis_ceres
     okvis_reference_map
+    okvis_reference_matcher
     okvis_timing
     okvis_matcher
     okvis_frontend 
@@ -368,6 +374,7 @@ set(CONF_INCLUDE_DIRS
   "${PROJECT_SOURCE_DIR}/okvis_common/include"
   "${PROJECT_SOURCE_DIR}/okvis_ceres/include"
   "${PROJECT_SOURCE_DIR}/okvis_reference_map/include"
+  "${PROJECT_SOURCE_DIR}/okvis_reference_matcher/include"
   "${PROJECT_SOURCE_DIR}/okvis_timing/include"
   "${PROJECT_SOURCE_DIR}/okvis_matcher/include"
   "${PROJECT_SOURCE_DIR}/okvis_frontend/include"

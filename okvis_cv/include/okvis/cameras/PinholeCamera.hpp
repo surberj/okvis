@@ -290,6 +290,12 @@ class PinholeCamera : public CameraBase
                          distortion_t::testObject()));
   }
   /// \brief get a test instance
+  static std::shared_ptr<CameraBase> createUnispitalObject()
+  {
+    return std::shared_ptr<CameraBase>(new PinholeCamera(752, 480, 468.82664312413465, 467.23394649258483, 368.94246348354824, 231.9267958865434,
+                         distortion_t::testObject()));
+  }
+  /// \brief get a test instance
   static PinholeCamera testObject()
   {
     return PinholeCamera(752, 480, 350, 360, 378, 238,
