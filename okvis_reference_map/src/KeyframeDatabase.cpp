@@ -198,4 +198,6 @@ void KeyframeDatabase::writeCurrentDatabaseToTxtFile(std::string bagname) {
   } 
 }
 
+//std::shared_ptr<okvis::MultiFrame> KeyframeDatabase::getNearestMultiframe(okvis::kinematics::Transforamtion T_WS_in);
+
 } // namespace okvis

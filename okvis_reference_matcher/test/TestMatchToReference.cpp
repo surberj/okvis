@@ -26,8 +26,8 @@
  *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  *
- *  Created on: Mar 31, 2015
- *      Author: Stefan Leutenegger (s.leutenegger@imperial.ac.uk)
+ *  Created in: 2016
+ *      Author: Julian Surber (surberj@student.ethz.ch)
  *********************************************************************************/
 
 #include <iostream>
@@ -36,21 +36,33 @@
 #include <okvis/MatchToReference.hpp>
 #include <opencv2/opencv.hpp>
 #include <brisk/brisk.h>
+#include <okvis/IdProvider.hpp>
+#include <okvis/MultiFrame.hpp>
 #include "okvis/cameras/PinholeCamera.hpp"
 #include "okvis/cameras/NoDistortion.hpp"
 #include "okvis/cameras/RadialTangentialDistortion.hpp"
 #include "okvis/cameras/EquidistantDistortion.hpp"
 #include "okvis/Frame.hpp"
 
-TEST(MatchToReference, unispital)
+TEST(ReferenceMatcher, MatchToReference)
 {
   OKVIS_DEFINE_EXCEPTION(Exception, std::runtime_error);
 
 // image callback setup
-      // create camera
+    // create camera
+    // for frame
     std::vector<std::shared_ptr<okvis::cameras::CameraBase> > cameras;
     cameras.push_back(
         okvis::cameras::PinholeCamera<okvis::cameras::EquidistantDistortion>::createUnispitalObject());
+    // and for multiframe
+    std::shared_ptr<const okvis::cameras::CameraBase> cameraGeometry0(
+        okvis::cameras::PinholeCamera<okvis::cameras::EquidistantDistortion>::createTestObject());
+    std::shared_ptr<const okvis::kinematics::Transformation> T_SC_init(
+        new okvis::kinematics::Transformation());
+    std::shared_ptr<okvis::cameras::NCameraSystem> cameraSystem(
+        new okvis::cameras::NCameraSystem);
+    cameraSystem->addCamera(T_SC_init, cameraGeometry0,
+                            okvis::cameras::NCameraSystem::DistortionType::Equidistant);
 
     // create cv detector
     std::shared_ptr<cv::FeatureDetector> detector(
@@ -76,17 +88,21 @@ TEST(MatchToReference, unispital)
   //  cv::imshow("Display Image", image);
   //  cv::waitKey(0);
 
-    // create okvis::Frame container which holds image keypoints and descriptors
-    okvis::Frame frame(image, cameras.at(0), detector, extractor);
-    okvis::Frame frame2(image2, cameras.at(0), detector, extractor);
+    // create okvis::Multiframe
+    size_t cameraIdx = 0;
+    okvis::Time t = okvis::Time::now();
+    std::shared_ptr<okvis::MultiFrame> mf(new okvis::MultiFrame);
+    mf->setId(okvis::IdProvider::instance().newId());
+    mf->setTimestamp(t);
+    mf->resetCameraSystemAndFrames(*cameraSystem);
+    mf->setImage(cameraIdx,image);
 
-    // detect corners
-    frame.detect();
-    frame2.detect();
+    std::shared_ptr<okvis::MultiFrame> mf2(new okvis::MultiFrame);
+    mf2->setId(okvis::IdProvider::instance().newId());
+    mf2->setTimestamp(t);
+    mf2->resetCameraSystemAndFrames(*cameraSystem);
+    mf2->setImage(cameraIdx,image2);
 
-    // describe BRISK features
-    frame.describe();
-    frame2.describe();
 
     // view descriptor
   //  std::vector<uint64_t>* landmarkIds = frame.getLandmarkIds();
@@ -99,60 +115,35 @@ TEST(MatchToReference, unispital)
   //    LOG(WARNING) << int(frame.keypointDescriptor(frame.getLandmarkIds()->at(0))[i]);
 
 
-// 2D2D matching setup
-  // create 2D2D matcher ()
-  cv::FlannBasedMatcher matcher2D2D(new cv::flann::LshIndexParams(20,10,2));
-
-// 2D2D matching
-  // get descriptors
-  cv::Mat descriptors = frame.descriptors();
-  cv::Mat descriptors2 = frame2.descriptors();
-
-  std::vector<cv::DMatch> matches;
-  matcher2D2D.match(descriptors, descriptors2, matches);
-
-
-
-
-
-// inspect and check
-  // get all keypoints
-  std::vector<cv::KeyPoint> keypoints;
-  for (size_t i=0;i<frame.numKeypoints();i++) {
-    cv::KeyPoint kp;
-    frame.getCvKeypoint(i, kp);
-    keypoints.push_back(kp);
-  }
-    
-  std::vector<cv::KeyPoint> keypoints2;
-  for (size_t i=0;i<frame2.numKeypoints();i++) {
-    cv::KeyPoint kp;
-    frame2.getCvKeypoint(i, kp);
-    keypoints2.push_back(kp);
-  }
-
-  cv::Mat all_matches;
-  cv::drawMatches( image, keypoints, image2, keypoints2,
-                       matches, all_matches, cv::Scalar::all(-1), cv::Scalar::all(-1),
-                       std::vector<char>(),cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
-  cv::imshow( "BRISK All Matches", all_matches );
-  cv::waitKey(0);
-
-
-
 // 2D3D matching setup
   // create matcher object
-  okvis::MatchToReference matcher;
+  size_t numCameras = 1;
+  uint64_t keyframeID = 0;
+  okvis::MatchToReference matcher(numCameras);
 
-// 2D3D matching
-  // based on prior get landmark candidates from 3D map
+// 2D2D matching
+  // prior
+  okvis::kinematics::Transformation T_WS_prior;
 
+  // based on prior get nearest keyframe from reference map
+  keyframeID = 0;
+  matcher.setNearestKeyframe(mf2);
 
+  // detect and describe
+  okvis::kinematics::Transformation T_SC = *mf->T_SC(cameraIdx);
+  okvis::kinematics::Transformation T_WC = T_WS_prior*T_SC;
+  matcher.setFrame(mf);
+  matcher.detectAndDescribe(cameraIdx, T_WC, nullptr);
+
+  // hack, as reference map is not available yet, add image2 as only referenceFrame
+  matcher.setNearestKeyframe(mf2);
+  matcher.detectAndDescribeKeyframe(cameraIdx, T_WC, nullptr);
+  
   // match 2D keypoints to 3D landmarks --> get correspondences
-  matcher.match();
+  matcher.match2D2D(cameraIdx);
 
   // run P3P ransac --> get pose measurement
-  matcher.runP3P();
+  matcher.solvePnPRansac();
 
   // save pose as a measurement
   okvis::kinematics::Transformation T_WC_estimated;
@@ -162,38 +153,5 @@ TEST(MatchToReference, unispital)
 
   OKVIS_ASSERT_TRUE(Exception, false, "MatchToReference not yet finished");
 
-/*  // instantiate all possible versions of test cameras
-  std::vector<std::shared_ptr<okvis::cameras::CameraBase> > cameras;
-  cameras.push_back(
-      okvis::cameras::PinholeCamera<okvis::cameras::NoDistortion>::createTestObject());
-  cameras.push_back(
-      okvis::cameras::PinholeCamera<okvis::cameras::RadialTangentialDistortion>::createTestObject());
-  cameras.push_back(
-      okvis::cameras::PinholeCamera<okvis::cameras::EquidistantDistortion>::createTestObject());
-
-  for (size_t c = 0; c < cameras.size(); ++c) {
-
-#ifdef __ARM_NEON__
-   std::shared_ptr<cv::FeatureDetector> detector(
-        new brisk::BriskFeatureDetector(34, 2));
-#else
-   std::shared_ptr<cv::FeatureDetector> detector(
-        new brisk::ScaleSpaceFeatureDetector<brisk::HarrisScoreCalculator>(
-            34, 2, 800, 450));
-#endif
- 
-    std::shared_ptr<cv::DescriptorExtractor> extractor(
-        new cv::BriskDescriptorExtractor(true, false));
-
-    // create a stupid random image
-    Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> eigenImage(752,480);
-    eigenImage.setRandom();
-    cv::Mat image(480, 752, CV_8UC1, eigenImage.data());
-    okvis::Frame frame(image, cameras.at(c), detector, extractor);
-
-    // run
-    frame.detect();
-    frame.describe();
-  }*/
 }
 

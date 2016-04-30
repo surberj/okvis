@@ -144,6 +144,13 @@ public:
 	 */
 	void writeCurrentDatabaseToTxtFile(std::string bagname);
 
+	/**
+	 * @brief      Get the multiframe which has most similar pose as T_WS_des
+	 *
+	 * @param[in]  T_WS_des  the desired transformation
+	 */
+	//std::shared_ptr<okvis::MultiFrame> getNearestMultiframe(okvis::kinematics::Transforamtion T_WS_in);
+
 private:
 	std::map<uint64_t, Keyframe*> keyframes_; ///< Map holding all keyframes
 	std::map<uint64_t, MapPoint*> landmarks_; ///< Map holding all landmarks

@@ -6,7 +6,8 @@ find_package( Eigen REQUIRED )
 include_directories(${EIGEN_INCLUDE_DIR})
 
 # require OpenCV
-find_package( OpenCV COMPONENTS core highgui imgproc features2d REQUIRED )
+find_package( OpenCV COMPONENTS core highgui imgproc features2d calib3d video REQUIRED )
+message(STATUS "Found OpenCV version ${OpenCV_VERSION}")
 include_directories(BEFORE ${OpenCV_INCLUDE_DIRS}) 
 
 # build the library
@@ -47,10 +48,13 @@ if(BUILD_TESTS)
   add_executable(${PROJECT_TEST_NAME} 
     test/runTests.cpp
     test/TestMatchToReference.cpp
+    test/TestOpencvMatcher.cpp
   )
   target_link_libraries(${PROJECT_TEST_NAME} 
     ${PROJECT_NAME} 
     ${GTEST_LIBRARY}  
-    pthread)
+    pthread
+    ${OpenCV_LIBS}
+)
   add_test(test ${PROJECT_TEST_NAME})
 endif()

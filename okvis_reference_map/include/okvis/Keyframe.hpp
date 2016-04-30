@@ -43,13 +43,20 @@ public:
 	~Keyframe();
 
 	/**
+	 * @brief      Get a pointer to the multiframe of the keyframe
+	 *
+	 * @return     Pointer to the multiframe
+	 */
+	std::shared_ptr<okvis::MultiFrame> multiFramePtr();
+
+	/**
 	 * @brief      Get the timestamp of the keyframe
 	 *
 	 * @return     The time this keyframe was recorded
 	 */
 	Time getTimestamp() const;
 
-		/**
+	/**
 	 * @brief      Get the id of this keyframe (same as for the underlying multiframe)
 	 *
 	 * @return     Id of the underlying multiframe

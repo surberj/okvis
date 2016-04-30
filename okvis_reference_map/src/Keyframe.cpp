@@ -23,6 +23,11 @@ Time Keyframe::getTimestamp() const {
 	return multiFrame_.timestamp();
 }
 
+std::shared_ptr<okvis::MultiFrame> Keyframe::multiFramePtr() {
+	//std::shared_ptr<okvis::MultiFrame> ptr(*multiFrame_);
+	return nullptr;
+}
+
 kinematics::Transformation Keyframe::getPose() const {
 	return T_WS_;
 }
