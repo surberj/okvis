@@ -181,7 +181,8 @@ class Estimator : public VioBackendInterface
    * @return True if successful.
    */
   bool applyMarginalizationStrategy(size_t numKeyframes, size_t numImuFrames,
-                                    okvis::MapPointVector& removedLandmarks);
+                                    okvis::MapPointVector& removedLandmarks,
+                                    okvis::MapPointDescriptorVector& removedDescriptors);
 
   /**
    * @brief Initialise pose from IMU measurements. For convenience as static.

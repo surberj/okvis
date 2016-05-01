@@ -61,8 +61,8 @@ class MockVioBackendInterface : public VioBackendInterface {
       ::ceres::ResidualBlockId(uint64_t landmarkId, uint64_t poseId, size_t camIdx, size_t keypointIdx));
   MOCK_METHOD4(removeObservation,
       bool(uint64_t landmarkId, uint64_t poseId, size_t camIdx, size_t keypointIdx));
-  MOCK_METHOD3(applyMarginalizationStrategy,
-      bool(size_t numKeyframes, size_t numImuFrames, okvis::MapPointVector& removedLandmarks));
+  MOCK_METHOD4(applyMarginalizationStrategy,
+      bool(size_t numKeyframes, size_t numImuFrames, okvis::MapPointVector& removedLandmarks, okvis::MapPointDescriptorVector& removedDescriptors));
   MOCK_METHOD3(optimize,
       void(size_t, size_t, bool));
   MOCK_METHOD2(setOptimizationTimeLimit,

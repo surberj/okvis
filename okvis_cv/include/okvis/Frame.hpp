@@ -162,6 +162,11 @@ class Frame
   /// \return The descriptor data pointer; NULL if out of bounds.
   inline const unsigned char * keypointDescriptor(size_t keypointIdx);
 
+  /// \brief Obtain the descriptor as cv::Mat -- CAUTION: slow version
+  /// @param[in] keypointIdx The requested keypoint's index.
+  /// \return The descriptor as cv::Mat.
+  inline const cv::Mat & cvKeypointDescriptor(size_t keypointIdx) const;
+
   /// \brief Set the landmark ID
   /// @param[in] keypointIdx The requested keypoint's index.
   /// @param[in] landmarkId The landmark Id.

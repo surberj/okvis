@@ -764,7 +764,8 @@ void ThreadedKFVio::optimizationLoop() {
       marginalizationTimer.start();
       estimator_.applyMarginalizationStrategy(
           parameters_.optimization.numKeyframes,
-          parameters_.optimization.numImuFrames, result.transferredLandmarks);
+          parameters_.optimization.numImuFrames, result.transferredLandmarks,
+          result.transferredDescriptors);
       marginalizationTimer.stop();
       afterOptimizationTimer.start();
 
@@ -873,7 +874,8 @@ void ThreadedKFVio::publisherLoop() {
                                        result.vector_of_T_SCi);
     if (landmarksCallback_ && !result.landmarksVector.empty())
       landmarksCallback_(result.stamp, result.landmarksVector,
-                         result.transferredLandmarks);  //TODO(gohlp): why two maps?
+                         result.transferredLandmarks,
+                         result.transferredDescriptors);  //TODO(gohlp): why two maps?
   }
 }
 

@@ -84,7 +84,8 @@ class VioInterface {
   typedef Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic> EigenImage;
   typedef std::function<
       void(const okvis::Time &, const okvis::MapPointVector &,
-           const okvis::MapPointVector &)> LandmarksCallback;
+           const okvis::MapPointVector &,
+           const okvis::MapPointDescriptorVector &)> LandmarksCallback;
 
   VioInterface();
   virtual ~VioInterface();
