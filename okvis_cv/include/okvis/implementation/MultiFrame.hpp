@@ -226,7 +226,7 @@ const unsigned char * MultiFrame::keypointDescriptor(size_t cameraIdx,
 // Access the descriptor -- CAUTION: slow version.
 ///        returns the descriptor as cv::Mat.
 const cv::Mat & MultiFrame::cvKeypointDescriptor(size_t cameraIdx,
-                                                     size_t keypointIdx) const
+                                                     size_t keypointIdx)
 {
   OKVIS_ASSERT_TRUE_DBG(Exception, cameraIdx < frames_.size(), "Out of range");
   return frames_[cameraIdx].cvKeypointDescriptor(keypointIdx);

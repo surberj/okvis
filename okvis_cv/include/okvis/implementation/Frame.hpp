@@ -258,9 +258,15 @@ const unsigned char * Frame::keypointDescriptor(size_t keypointIdx)
 }
 
 // obtain the descriptor of a keypoint -- CAUTION: slow version
-const cv::Mat & Frame::cvKeypointDescriptor(size_t keypointIdx) const
+const cv::Mat & Frame::cvKeypointDescriptor(size_t keypointIdx)
 {
-  return descriptors_.row(keypointIdx);
+  OKVIS_ASSERT_TRUE(
+      Exception,
+      keypointIdx < keypoints_.size(),
+      "keypointIdx " << keypointIdx << "out of range: keypoints has size "
+          << keypoints_.size());
+  descriptor_ = descriptors_.row(keypointIdx).clone();
+  return descriptor_;//.row(keypointIdx);
 }
 
 // Set the landmark ID

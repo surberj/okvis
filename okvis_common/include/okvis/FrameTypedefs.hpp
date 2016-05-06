@@ -193,10 +193,11 @@ struct MapPointDescriptor
    * @param id          ID of the point. E.g. landmark ID.
    * @param descriptor  Descriptor as a one row cv::Mat.
    */
-  MapPointDescriptor(uint64_t id, const cv::Mat & descriptor)
+  MapPointDescriptor(uint64_t id, const cv::Mat & inputDescriptor)
       : id(id),
-        descriptor(descriptor)
+        descriptor()
   {
+    inputDescriptor.copyTo(descriptor);
   }
   uint64_t id;            ///< ID of the point. E.g. landmark ID.
   cv::Mat descriptor;     ///< Descriptor as a one row cv::Mat.

@@ -165,7 +165,7 @@ class Frame
   /// \brief Obtain the descriptor as cv::Mat -- CAUTION: slow version
   /// @param[in] keypointIdx The requested keypoint's index.
   /// \return The descriptor as cv::Mat.
-  inline const cv::Mat & cvKeypointDescriptor(size_t keypointIdx) const;
+  inline const cv::Mat & cvKeypointDescriptor(size_t keypointIdx);
 
   /// \brief Set the landmark ID
   /// @param[in] keypointIdx The requested keypoint's index.
@@ -199,6 +199,7 @@ class Frame
   std::shared_ptr<const cv::DescriptorExtractor> extractor_;  ///< the extractor
   std::vector<cv::KeyPoint> keypoints_;  ///< we store keypoints using OpenCV's struct
   cv::Mat descriptors_;  ///< we store the descriptors using OpenCV's matrices
+  cv::Mat descriptor_;  ///< container to store one of the descriptors as OpenCV matrix
   std::vector<uint64_t> landmarkIds_;  ///< landmark Id, if associated -- 0 otherwise
 };
 

@@ -208,7 +208,7 @@ class MultiFrame
   /// @param[in] cameraIdx The camera index.
   /// \return The image.
   inline const cv::Mat & cvKeypointDescriptor(size_t cameraIdx, 
-                              size_t keypointIdx) const;
+                              size_t keypointIdx);
 
   /// \brief Set the landmark ID
   /// @param[in] cameraIdx The camera index.
