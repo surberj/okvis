@@ -595,6 +595,7 @@ void ThreadedKFVio::imuConsumerLoop() {
       }
       result.onlyPublishLandmarks = false;
       optimizationResults_.PushNonBlockingDroppingIfFull(result,1);
+//      LOG(WARNING) << "1) size of optimizationResult queue: " << optimizationResults_.Size();
     }
     processImuTimer.stop();
   }
@@ -832,6 +833,19 @@ void ThreadedKFVio::optimizationLoop() {
       }
 
       optimizationDone_ = true;
+
+      // if current frame is a keyframe publish it for global map alignment
+      if (estimator_.isKeyframe(estimator_.currentFrameId())) {
+        // get keypoints and descriptors of the frame:
+        estimator_.multiFrame(estimator_.currentFrameId())->getCvKeypoints(0, last_keypoints_);
+        last_descriptors_ = estimator_.multiFrame(estimator_.currentFrameId())->cvKeypointDescriptors(0);
+        describedFrameCallback_(lastOptimizedStateTimestamp_,
+                            lastOptimized_T_WS_,
+                            *parameters_.nCameraSystem.T_SC(0),
+                            last_keypoints_,
+                            last_descriptors_);
+      }
+
     }  // unlock mutex
     optimizationNotification_.notify_all();
 
@@ -843,6 +857,7 @@ void ThreadedKFVio::optimizationLoop() {
                 *parameters_.nCameraSystem.T_SC(i)));
       }
     }
+
     optimizationResults_.Push(result);
 
     // adding further elements to visualization data that do not access estimator
@@ -876,6 +891,22 @@ void ThreadedKFVio::publisherLoop() {
       landmarksCallback_(result.stamp, result.landmarksVector,
                          result.transferredLandmarks,
                          result.transferredDescriptors);  //TODO(gohlp): why two maps?
+
+
+/*    // publish described frame as callback
+    if (describedFrameCallback_) {
+      // only publish if both frame and estimates are present
+      if (describedFrameInfo_.got_frame && describedFrameInfo_.got_estimate) {
+        std::vector<cv::KeyPoint> kps;
+        cv::Mat des;
+        describedFrameCallback_(describedFrameInfo_.stamp, describedFrameInfo_.T_WS,
+                            describedFrameInfo_.T_SC,
+                            kps,
+                            des);
+        describedFrameInfo_.got_frame = false;
+        describedFrameInfo_.got_estimate = false;
+      }
+    }*/
   }
 }
 

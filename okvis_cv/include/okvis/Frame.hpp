@@ -145,6 +145,11 @@ class Frame
   /// \return whether or not the operation was successful.
   inline bool getCvKeypoint(size_t keypointIdx, cv::KeyPoint & keypoint) const;
 
+  /// \brief Access all keypoints in OpenCV format
+  /// @param[out] keypoints  requested keypoints.
+  /// \return whether or not the operation was successful.
+  inline bool getCvKeypoints(std::vector<cv::KeyPoint> & keypoints) const;
+
   /// \brief Get a specific keypoint
   /// @param[in] keypointIdx The requested keypoint's index.
   /// @param[out] keypoint The requested keypoint.
@@ -166,6 +171,10 @@ class Frame
   /// @param[in] keypointIdx The requested keypoint's index.
   /// \return The descriptor as cv::Mat.
   inline const cv::Mat & cvKeypointDescriptor(size_t keypointIdx);
+
+  /// \brief Obtain all descriptors as cv::Mat -- CAUTION: slow version
+  /// \return The descriptors as cv::Mat.
+  inline const cv::Mat & cvKeypointDescriptors();
 
   /// \brief Set the landmark ID
   /// @param[in] keypointIdx The requested keypoint's index.

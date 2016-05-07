@@ -81,6 +81,11 @@ void VioInterface::setStateCallback(const StateCallback & stateCallback) {
   stateCallback_ = stateCallback;
 }
 
+// Set the callback to be called every time a new state is estimated.
+void VioInterface::setDescribedFrameCallback(const DescribedFrameCallback & describedFrameCallback) {
+  describedFrameCallback_ = describedFrameCallback;
+}
+
 // Set the fullStateCallback to be called every time a new state is estimated.
 void VioInterface::setFullStateCallback(
     const FullStateCallback & fullStateCallback) {

@@ -206,6 +206,13 @@ bool Frame::getCvKeypoint(size_t keypointIdx, cv::KeyPoint & keypoint) const
 #endif
 }
 
+// access all keypoints in OpenCV format
+bool Frame::getCvKeypoints(std::vector<cv::KeyPoint> & keypoints) const
+{
+  keypoints = keypoints_;
+  return true;
+}
+
 // get a specific keypoint
 bool Frame::getKeypoint(size_t keypointIdx, Eigen::Vector2d & keypoint) const
 {
@@ -267,6 +274,12 @@ const cv::Mat & Frame::cvKeypointDescriptor(size_t keypointIdx)
           << keypoints_.size());
   descriptor_ = descriptors_.row(keypointIdx).clone();
   return descriptor_;//.row(keypointIdx);
+}
+
+// obtain all descriptors -- CAUTION: slow version
+const cv::Mat & Frame::cvKeypointDescriptors()
+{
+  return descriptors_;
 }
 
 // Set the landmark ID
