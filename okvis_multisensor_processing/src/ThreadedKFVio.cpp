@@ -835,16 +835,51 @@ void ThreadedKFVio::optimizationLoop() {
       optimizationDone_ = true;
 
       // if current frame is a keyframe publish it for global map alignment
-      if (estimator_.isKeyframe(estimator_.currentFrameId())) {
+//      if (estimator_.isKeyframe(estimator_.currentFrameId())) {
         // get keypoints and descriptors of the frame:
         estimator_.multiFrame(estimator_.currentFrameId())->getCvKeypoints(0, last_keypoints_);
         last_descriptors_ = estimator_.multiFrame(estimator_.currentFrameId())->cvKeypointDescriptors(0);
+        // estimate distance to structure based on all good keypoints in image
+        double z_body = lastOptimized_T_WS_.r()[2];
+        okvis::PointMap landmarks;
+        estimator_.getLandmarks(landmarks);
+        int N = 0;
+        double estimated_distance = 0.0;
+        for (PointMap::const_reverse_iterator it=landmarks.rbegin(); it!=landmarks.rend(); ++it) {
+          if (it->second.quality < 0.01) {
+            continue;
+          }
+          if ( fabs((double) (it->second.point[3])) < 1.0e-8) {
+            continue;
+          }
+          double z_point = it->second.point[2]/it->second.point[3];
+          double distance = z_body-z_point;
+          if (distance < 0.1 || distance > 100.0) {
+            continue;
+          }
+          N++;
+          estimated_distance = 1.0/N*(estimated_distance*(N-1) + distance);
+          if (N >= 25) break;
+        }
+        if (N < 10 || estimated_distance < 0.1 || estimated_distance > 100.0) {
+          if (estimated_distance_to_structure_ < 0.1 || estimated_distance_to_structure_ > 100.0) {
+            estimated_distance_to_structure_ = 10.0;
+            LOG(INFO) << "estimated distance to structure not meaningful. Take default of " << estimated_distance_to_structure_;
+          } else {
+            LOG(INFO) << "estimated distance to structure not meaningful. Keep last estimate of " << estimated_distance_to_structure_;
+          }
+        } else {
+          estimated_distance_to_structure_ = estimated_distance;
+          LOG(INFO) << "estimated distance to structure = " << estimated_distance_to_structure_ << ", based on " << N << " points.";
+        }
+        // callback
         describedFrameCallback_(lastOptimizedStateTimestamp_,
                             lastOptimized_T_WS_,
                             *parameters_.nCameraSystem.T_SC(0),
                             last_keypoints_,
-                            last_descriptors_);
-      }
+                            last_descriptors_,
+                            estimated_distance_to_structure_);
+//      }
 
     }  // unlock mutex
     optimizationNotification_.notify_all();
@@ -891,22 +926,6 @@ void ThreadedKFVio::publisherLoop() {
       landmarksCallback_(result.stamp, result.landmarksVector,
                          result.transferredLandmarks,
                          result.transferredDescriptors);  //TODO(gohlp): why two maps?
-
-
-/*    // publish described frame as callback
-    if (describedFrameCallback_) {
-      // only publish if both frame and estimates are present
-      if (describedFrameInfo_.got_frame && describedFrameInfo_.got_estimate) {
-        std::vector<cv::KeyPoint> kps;
-        cv::Mat des;
-        describedFrameCallback_(describedFrameInfo_.stamp, describedFrameInfo_.T_WS,
-                            describedFrameInfo_.T_SC,
-                            kps,
-                            des);
-        describedFrameInfo_.got_frame = false;
-        describedFrameInfo_.got_estimate = false;
-      }
-    }*/
   }
 }
 

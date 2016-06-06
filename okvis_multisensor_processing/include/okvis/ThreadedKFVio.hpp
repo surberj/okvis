@@ -306,20 +306,6 @@ class ThreadedKFVio : public VioInterface {
     bool onlyPublishLandmarks;                  ///< Boolean to signalise the publisherLoop() that only the landmarks should be published
   };
 
-  /// @brief This struct contains the information to publish the described frame for global map alignment.
-  ///        It is also used for publishing poses that have been propagated with the IMU
-  ///        measurements.
-  struct DescribedFrameInfo {
-    okvis::Time stamp;                          ///< Timestamp of the optimized/propagated pose.
-    okvis::kinematics::Transformation T_WS;     ///< The pose.
-    /// The relative transformation of the cameras to the sensor (IMU) frame
-    okvis::kinematics::Transformation T_SC;
-    std::vector<cv::KeyPoint> keypoints;  ///< The keypoints in the image as OpenCV's struct
-    cv::Mat descriptors;  ///< The descriptors of the keypoints as OpenCV's matrix
-    bool got_frame;     ///< Did we get the frame?
-    bool got_estimate;  ///< Did we get the estimates?
-  } describedFrameInfo_;
-
   /// @name State variables
   /// @{
 
@@ -347,6 +333,7 @@ class ThreadedKFVio : public VioInterface {
   // variables to publish described frame for global map alignment:
   std::vector<cv::KeyPoint> last_keypoints_;
   cv::Mat last_descriptors_;
+  double estimated_distance_to_structure_;
   
   /// @}
 
@@ -387,8 +374,6 @@ class ThreadedKFVio : public VioInterface {
   okvis::PositionMeasurementDeque positionMeasurements_;
   /// The queue containing the results of the optimization or IMU propagation ready for publishing.
   okvis::threadsafe::ThreadSafeQueue<OptimizationResults> optimizationResults_;
-  /// The queue containing the infos about the described keyframe for publishing.
-  //okvis::threadsafe::ThreadSafeQueue<DescribedFrameInfo> describedFrameInfo_;
   /// The queue containing visualization data that is ready to be displayed.
   okvis::threadsafe::ThreadSafeQueue<VioVisualizer::VisualizationData::Ptr> visualizationData_;
   /// The queue containing the actual display images

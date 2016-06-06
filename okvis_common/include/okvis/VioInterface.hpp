@@ -73,7 +73,8 @@ class VioInterface {
       void(const okvis::Time &, const okvis::kinematics::Transformation &,
            const okvis::kinematics::Transformation &,
            const std::vector<cv::KeyPoint> &,
-           const cv::Mat &)> DescribedFrameCallback;
+           const cv::Mat &,
+           double)> DescribedFrameCallback;
   typedef std::function<
       void(const okvis::Time &, const okvis::kinematics::Transformation &,
            const Eigen::Matrix<double, 9, 1> &,
