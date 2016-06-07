@@ -119,6 +119,8 @@ void ThreadedKFVio::init() {
   	  cv::namedWindow(windowname.str());
     }
   }
+
+  last_image_ = false;
   
   startThreads();
 }
@@ -338,6 +340,12 @@ void ThreadedKFVio::frameConsumerLoop(size_t cameraIndex) {
     if (cameraMeasurementsReceived_[cameraIndex]->PopBlocking(&frame) == false) {
       return;
     }
+    
+    if(last_image_) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+      continue;
+    }
+
     beforeDetectTimer.start();
     {  // lock the frame synchronizer
       waitForFrameSynchronizerMutexTimer.start();
@@ -467,6 +475,11 @@ void ThreadedKFVio::matchingLoop() {
     if (keypointMeasurements_.PopBlocking(&frame) == false)
       return;
 
+    if(last_image_) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+      continue;
+    }
+
     prepareToAddStateTimer.start();
     // -- get relevant imu messages for new state
     okvis::Time imuDataEndTime = frame->timestamp() + temporal_imu_data_overlap;
@@ -546,6 +559,12 @@ void ThreadedKFVio::imuConsumerLoop() {
     // get data and check for termination request
     if (imuMeasurementsReceived_.PopBlocking(&data) == false)
       return;
+
+    if(last_image_) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      continue;
+    }
+
     processImuTimer.start();
     okvis::Time start;
     const okvis::Time* end;  // do not need to copy end timestamp
@@ -722,6 +741,14 @@ void ThreadedKFVio::optimizationLoop() {
   TimerSwitchable optimizationTimer("3.1 optimization",true);
   TimerSwitchable marginalizationTimer("3.2 marginalization",true);
   TimerSwitchable afterOptimizationTimer("3.3 afterOptimization",true);
+  size_t count = 0;
+  size_t postcount = 0;
+  bool fadeout = false;
+  // run optimization on the first Nfirst frames, from then on every Rnormal'th frame and for the last Nlast frames
+  size_t Nfirst = 80;
+  size_t Rnormal = 20;
+  size_t Nlast = 10;
+  size_t startFadeoutFrame = 1801;
 
   for (;;) {
     std::shared_ptr<okvis::MultiFrame> frame_pairs;
@@ -729,12 +756,38 @@ void ThreadedKFVio::optimizationLoop() {
     okvis::Time deleteImuMeasurementsUntil(0, 0);
     if (matchedFrames_.PopBlocking(&frame_pairs) == false)
       return;
+
+    if(postcount >= Nlast-1) {
+      last_image_ = true;
+      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+      continue;
+    }
+
     OptimizationResults result;
+    bool skip;
+    if(count > Nfirst && count % Rnormal != 0) {
+      skip = true;
+      //LOG(WARNING) << "offline version: SKIP optimization and marginalization for " << count << "th frame " << estimator_.frameIdByAge(0);
+    } else {
+      skip = false;
+      LOG(INFO) << "offline version: RUN opt. on " << count << "th frame; Nframes=" << estimator_.numFrames();
+    }
+    if(count >= startFadeoutFrame) {
+      LOG(INFO) << "offline version: Fadeout, RUN opt. on " << count << "th frame; Nframes=" << estimator_.numFrames();
+      fadeout = true;
+      skip = false;
+    }
+    count++;
+    if(fadeout)
+      postcount++;
+
     {
       std::lock_guard<std::mutex> l(estimator_mutex_);
       optimizationTimer.start();
       //if(frontend_.isInitialized()){
+      if(!skip) {
         estimator_.optimize(parameters_.optimization.max_iterations, 2, false);
+      }
       //}
       /*if (estimator_.numFrames() > 0 && !frontend_.isInitialized()){
         // undo translation
@@ -761,17 +814,34 @@ void ThreadedKFVio::optimizationLoop() {
             estimator_.frameIdByAge(parameters_.optimization.numImuFrames))
             ->timestamp() - temporal_imu_data_overlap;
       }
+      if (fadeout && estimator_.numFrames()
+          > size_t((Nlast-postcount)*floor(parameters_.optimization.numImuFrames/Nlast))) {
+        deleteImuMeasurementsUntil = estimator_.multiFrame(
+            estimator_.frameIdByAge((Nlast-postcount)*floor(parameters_.optimization.numImuFrames/Nlast)))
+            ->timestamp() - temporal_imu_data_overlap;
+      }
 
       marginalizationTimer.start();
-      estimator_.applyMarginalizationStrategy(
+      if(!skip && !fadeout) {
+        estimator_.applyMarginalizationStrategy(
           parameters_.optimization.numKeyframes,
           parameters_.optimization.numImuFrames, result.transferredLandmarks,
           result.transferredDescriptors);
+      }
+      if(fadeout) {
+        estimator_.applyMarginalizationStrategy(
+          (Nlast-postcount)*floor(parameters_.optimization.numKeyframes/Nlast), 
+          (Nlast-postcount)*floor(parameters_.optimization.numImuFrames/Nlast), 
+          result.transferredLandmarks,
+          result.transferredDescriptors);
+      }
       marginalizationTimer.stop();
       afterOptimizationTimer.start();
 
       // now actually remove measurements
-      deleteImuMeasurements(deleteImuMeasurementsUntil);
+      if(!skip) {
+        deleteImuMeasurements(deleteImuMeasurementsUntil);
+      }
 
       // saving optimized state and saving it in OptimizationResults struct
       {
@@ -870,7 +940,7 @@ void ThreadedKFVio::optimizationLoop() {
           }
         } else {
           estimated_distance_to_structure_ = estimated_distance;
-          LOG(INFO) << "estimated distance to structure = " << estimated_distance_to_structure_ << ", based on " << N << " points.";
+          // LOG(INFO) << "estimated distance to structure = " << estimated_distance_to_structure_ << ", based on " << N << " points.";
         }
         // callback
         describedFrameCallback_(lastOptimizedStateTimestamp_,

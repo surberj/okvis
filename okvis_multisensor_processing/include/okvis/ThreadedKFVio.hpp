@@ -334,6 +334,8 @@ class ThreadedKFVio : public VioInterface {
   std::vector<cv::KeyPoint> last_keypoints_;
   cv::Mat last_descriptors_;
   double estimated_distance_to_structure_;
+
+  bool last_image_; ///< Tells all loops that this will be the last image to process and publish
   
   /// @}
 
