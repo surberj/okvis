@@ -746,9 +746,9 @@ void ThreadedKFVio::optimizationLoop() {
   bool fadeout = false;
   // run optimization on the first Nfirst frames, from then on every Rnormal'th frame and for the last Nlast frames
   size_t Nfirst = 80;
-  size_t Rnormal = 20;
+  size_t Rnormal = 10;
   size_t Nlast = 10;
-  size_t startFadeoutFrame = 1801;
+  size_t startFadeoutFrame = 2301;
 
   for (;;) {
     std::shared_ptr<okvis::MultiFrame> frame_pairs;
@@ -765,21 +765,21 @@ void ThreadedKFVio::optimizationLoop() {
 
     OptimizationResults result;
     bool skip;
-    if(count > Nfirst && count % Rnormal != 0) {
-      skip = true;
-      //LOG(WARNING) << "offline version: SKIP optimization and marginalization for " << count << "th frame " << estimator_.frameIdByAge(0);
-    } else {
+    if (count <= Nfirst) {
+      skip = false;
+      LOG(INFO) << "offline version: Fade-in, RUN opt. on " << count << "th frame; Nframes=" << estimator_.numFrames();
+    } else if (count % Rnormal == 0) {
       skip = false;
       LOG(INFO) << "offline version: RUN opt. on " << count << "th frame; Nframes=" << estimator_.numFrames();
-    }
-    if(count >= startFadeoutFrame) {
-      LOG(INFO) << "offline version: Fadeout, RUN opt. on " << count << "th frame; Nframes=" << estimator_.numFrames();
+    } else if (count >= startFadeoutFrame) {
+      LOG(INFO) << "offline version: Fade-out, RUN opt. on " << count << "th frame; Nframes=" << estimator_.numFrames();
       fadeout = true;
+      postcount++;
       skip = false;
+    } else {
+      skip = true;
     }
     count++;
-    if(fadeout)
-      postcount++;
 
     {
       std::lock_guard<std::mutex> l(estimator_mutex_);
