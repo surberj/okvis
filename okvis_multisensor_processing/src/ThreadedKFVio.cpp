@@ -757,7 +757,7 @@ void ThreadedKFVio::optimizationLoop() {
     if (matchedFrames_.PopBlocking(&frame_pairs) == false)
       return;
 
-    if(postcount >= Nlast-1) {
+    if(postcount >= Nlast) {
       last_image_ = true;
       std::this_thread::sleep_for(std::chrono::milliseconds(1000));
       continue;
@@ -815,9 +815,9 @@ void ThreadedKFVio::optimizationLoop() {
             ->timestamp() - temporal_imu_data_overlap;
       }
       if (fadeout && estimator_.numFrames()
-          > size_t((Nlast-postcount)*floor(parameters_.optimization.numImuFrames/Nlast))) {
+          > size_t((Nlast-postcount)*floor(parameters_.optimization.numImuFrames/Nlast)+1)) {
         deleteImuMeasurementsUntil = estimator_.multiFrame(
-            estimator_.frameIdByAge((Nlast-postcount)*floor(parameters_.optimization.numImuFrames/Nlast)))
+            estimator_.frameIdByAge((Nlast-postcount)*floor(parameters_.optimization.numImuFrames/Nlast)+1))
             ->timestamp() - temporal_imu_data_overlap;
       }
 
@@ -830,8 +830,8 @@ void ThreadedKFVio::optimizationLoop() {
       }
       if(fadeout) {
         estimator_.applyMarginalizationStrategy(
-          (Nlast-postcount)*floor(parameters_.optimization.numKeyframes/Nlast), 
-          (Nlast-postcount)*floor(parameters_.optimization.numImuFrames/Nlast), 
+          (Nlast-postcount)*floor(parameters_.optimization.numKeyframes/Nlast)+1, 
+          (Nlast-postcount)*floor(parameters_.optimization.numImuFrames/Nlast)+1, 
           result.transferredLandmarks,
           result.transferredDescriptors);
       }
