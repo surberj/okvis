@@ -204,6 +204,14 @@ class MultiFrame
   inline bool getKeypointSize(size_t cameraIdx, size_t keypointIdx,
                               double & keypointSize) const;
 
+  /// \brief Get the pixel intensity of a specific keypoint
+  /// @param[in] cameraIdx The camera index.
+  /// @param[in] keypointIdx The requested keypoint's index.
+  /// @param[out] keypointIntensity The requested keypoint's pixel intensity
+  /// \return whether or not the operation was successful.
+  inline bool getKeypointIntensity(size_t cameraIdx, size_t keypointIdx,
+                              int & keypointIntensity) const;
+
   /// \brief Access the descriptor -- CAUTION: high-speed version.
   /// @param[in] cameraIdx The camera index.
   /// @param[in] keypointIdx The requested keypoint's index.

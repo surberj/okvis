@@ -364,6 +364,14 @@ bool Estimator::addLandmark(uint64_t landmarkId,
   return true;
 }
 
+// Add the landmark intensity.
+void Estimator::addLandmarkIntensity(uint64_t landmarkId,
+                            int intensity) {
+  if(landmarksMap_.find(landmarkId) != landmarksMap_.end()) {
+    landmarksMap_.at(landmarkId).setIntensity(intensity);
+  }
+}
+
 // Remove an observation from a landmark.
 bool Estimator::removeObservation(::ceres::ResidualBlockId residualBlockId) {
   const ceres::Map::ParameterBlockCollection parameters = mapPtr_->parameters(residualBlockId);

@@ -521,6 +521,10 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setBestMatch(
       estimator_->addObservation<camera_geometry_t>(lmIdB, mfIdB_, camIdB_,
                                                     indexB);
     }
+      // add intensity
+      int intensity = 250;
+      frameB_->getKeypointIntensity(camIdB_, indexB, intensity);
+      estimator_->addLandmarkIntensity(lmIdB, intensity);
 
   }
   numMatches_++;

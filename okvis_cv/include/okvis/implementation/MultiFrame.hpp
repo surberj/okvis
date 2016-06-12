@@ -222,6 +222,14 @@ bool MultiFrame::getKeypointSize(size_t cameraIdx, size_t keypointIdx,
   return frames_[cameraIdx].getKeypointSize(keypointIdx, keypointSize);
 }
 
+// Get the pixel intensity of a specific keypoint
+bool MultiFrame::getKeypointIntensity(size_t cameraIdx, size_t keypointIdx,
+                                 int & keypointIntensity) const
+{
+  OKVIS_ASSERT_TRUE_DBG(Exception, cameraIdx < frames_.size(), "Out of range");
+  return frames_[cameraIdx].getKeypointIntensity(keypointIdx, keypointIntensity);
+}
+
 // Access the descriptor -- CAUTION: high-speed version.
 ///        returns NULL if out of bounds.
 const unsigned char * MultiFrame::keypointDescriptor(size_t cameraIdx,

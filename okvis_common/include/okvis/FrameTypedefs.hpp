@@ -145,7 +145,8 @@ struct MapPoint
   MapPoint()
       : id(0),
         quality(0.0),
-        distance(0.0)
+        distance(0.0),
+        intensity(0)
   {
   }
   /**
@@ -160,13 +161,38 @@ struct MapPoint
       : id(id),
         point(point),
         quality(quality),
-        distance(distance)
+        distance(distance),
+        intensity(255)
   {
   }
+  /**
+   * @brief Constructor.
+   * @param id        ID of the point. E.g. landmark ID.
+   * @param point     Homogeneous coordinate of the point.
+   * @param quality   Quality of the point. Usually between 0 and 1.
+   * @param distance  Distance to origin of the frame the coordinates are given in.
+   */
+  MapPoint(uint64_t id, const Eigen::Vector4d & point,
+           double quality, double distance, int intensity)
+      : id(id),
+        point(point),
+        quality(quality),
+        distance(distance),
+        intensity(intensity)
+  {
+  }
+
+  /// \brief Set intensity.
+  void setIntensity(int intens)
+  {
+    intensity = intens;
+  }
+
   uint64_t id;            ///< ID of the point. E.g. landmark ID.
   Eigen::Vector4d point;  ///< Homogeneous coordinate of the point.
   double quality;         ///< Quality of the point. Usually between 0 and 1.
   double distance;        ///< Distance to origin of the frame the coordinates are given in.
+  int intensity;          ///< The intensity of the pixel from the original image
   std::map<okvis::KeypointIdentifier, uint64_t> observations;   ///< Observations of this point.
 };
 

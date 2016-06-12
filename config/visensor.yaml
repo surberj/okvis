@@ -52,13 +52,13 @@ imu_params:
          0.0000, 0.0000, 0.0000, 1.0000]
 
 # Estimator parameters
-numKeyframes: 150 # number of keyframes in optimisation window
-numImuFrames: 20 # number of frames linked by most recent nonlinear IMU error terms
+numKeyframes: 300 # number of keyframes in optimisation window
+numImuFrames: 5 # number of frames linked by most recent nonlinear IMU error terms
 
 # ceres optimization options
 ceres_options:
     minIterations: 2   # minimum number of iterations always performed
-    maxIterations: 100  # never do more than these, even if not converged
+    maxIterations: 200  # never do more than these, even if not converged
     timeLimit: -1.0   # [s] negative values will set the an unlimited time limit
 
 # detection

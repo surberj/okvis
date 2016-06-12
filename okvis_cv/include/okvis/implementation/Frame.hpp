@@ -248,6 +248,31 @@ bool Frame::getKeypointSize(size_t keypointIdx, double & keypointSize) const
 #endif
 }
 
+// get the intensity of a specific keypoint
+bool Frame::getKeypointIntensity(size_t keypointIdx, int & keypointIntensity) const
+{
+#ifndef NDEBUG
+  OKVIS_ASSERT_TRUE(
+      Exception,
+      keypointIdx < keypoints_.size(),
+      "keypointIdx " << keypointIdx << "out of range: keypoints has size "
+          << keypoints_.size());
+  cv::KeyPoint kp = keypoints_.at(keypointIdx);
+  cv::Point2f pt = kp.pt;
+  int x= (int)pt.x;
+  int y= (int)pt.y;
+  keypointIntensity = (int)image_.at<uchar>(y,x);
+  return keypointIdx < keypoints_.size();
+#else
+  cv::KeyPoint kp = keypoints_.at(keypointIdx);
+  cv::Point2f pt = kp.pt;
+  int x= (int)pt.x;
+  int y= (int)pt.y;
+  keypointIntensity = (int)image_.at<uchar>(y,x);
+  return true;
+#endif
+}
+
 // access the descriptor -- CAUTION: high-speed version.
 ///        returns NULL if out of bounds.
 const unsigned char * Frame::keypointDescriptor(size_t keypointIdx)

@@ -748,7 +748,7 @@ void ThreadedKFVio::optimizationLoop() {
   size_t Nfirst = 80;
   size_t Rnormal = 10;
   size_t Nlast = 10;
-  size_t startFadeoutFrame = 2301;
+  size_t startFadeoutFrame = 2201;
 
   for (;;) {
     std::shared_ptr<okvis::MultiFrame> frame_pairs;
@@ -757,7 +757,7 @@ void ThreadedKFVio::optimizationLoop() {
     if (matchedFrames_.PopBlocking(&frame_pairs) == false)
       return;
 
-    if(postcount >= Nlast) {
+    if(postcount > Nlast) {
       last_image_ = true;
       std::this_thread::sleep_for(std::chrono::milliseconds(1000));
       continue;

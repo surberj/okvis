@@ -150,6 +150,14 @@ class Estimator : public VioBackendInterface
                    const Eigen::Vector4d & landmark);
 
   /**
+   * @brief Add a landmarks intensity for visualization.
+   * @param landmarkId ID of the new landmark.
+   * @param intensity the pixel intensity of the landmark.
+   */
+  void addLandmarkIntensity(uint64_t landmarkId,
+                   int intensity);
+
+  /**
    * @brief Add an observation to a landmark.
    * \tparam GEOMETRY_TYPE The camera geometry type for this observation.
    * @param landmarkId ID of landmark.
