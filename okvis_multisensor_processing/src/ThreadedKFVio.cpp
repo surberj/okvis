@@ -863,14 +863,14 @@ void ThreadedKFVio::optimizationLoop() {
         }
         if (N < 10 || estimated_distance < 0.1 || estimated_distance > 100.0) {
           if (estimated_distance_to_structure_ < 0.1 || estimated_distance_to_structure_ > 100.0) {
-            estimated_distance_to_structure_ = 10.0;
+            estimated_distance_to_structure_ = 0.5;
             LOG(INFO) << "estimated distance to structure not meaningful. Take default of " << estimated_distance_to_structure_;
           } else {
             LOG(INFO) << "estimated distance to structure not meaningful. Keep last estimate of " << estimated_distance_to_structure_;
           }
         } else {
           estimated_distance_to_structure_ = estimated_distance;
-          LOG(INFO) << "estimated distance to structure = " << estimated_distance_to_structure_ << ", based on " << N << " points.";
+          // LOG(INFO) << "estimated distance to structure = " << estimated_distance_to_structure_ << ", based on " << N << " points.";
         }
         // callback
         describedFrameCallback_(lastOptimizedStateTimestamp_,
@@ -879,7 +879,6 @@ void ThreadedKFVio::optimizationLoop() {
                             last_keypoints_,
                             last_descriptors_,
                             estimated_distance_to_structure_);
-//      }
 
     }  // unlock mutex
     optimizationNotification_.notify_all();
