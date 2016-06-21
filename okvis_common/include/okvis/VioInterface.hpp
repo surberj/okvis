@@ -71,6 +71,12 @@ class VioInterface {
   void(const okvis::Time &, const okvis::kinematics::Transformation &)> StateCallback;
   typedef std::function<
       void(const okvis::Time &, const okvis::kinematics::Transformation &,
+           const okvis::kinematics::Transformation &,
+           const std::vector<cv::KeyPoint> &,
+           const cv::Mat &,
+           double)> DescribedFrameCallback;
+  typedef std::function<
+      void(const okvis::Time &, const okvis::kinematics::Transformation &,
            const Eigen::Matrix<double, 9, 1> &,
            const Eigen::Matrix<double, 3, 1> &)> FullStateCallback;
   typedef std::function<
@@ -84,7 +90,8 @@ class VioInterface {
   typedef Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic> EigenImage;
   typedef std::function<
       void(const okvis::Time &, const okvis::MapPointVector &,
-           const okvis::MapPointVector &)> LandmarksCallback;
+           const okvis::MapPointVector &,
+           const okvis::MapPointDescriptorVector &)> LandmarksCallback;
 
   VioInterface();
   virtual ~VioInterface();
@@ -259,6 +266,14 @@ class VioInterface {
   ///        transforms points from the vehicle frame to the world frame
   virtual void setStateCallback(const StateCallback & stateCallback);
 
+  /// \brief Set the describedFrameCallback to be called every time a new keyframe gets defined.
+  ///        When an implementing class has a new keyframe, they can call:
+  ///        describedFrameCallback_( stamp, T_w_vk );
+  ///        where stamp is the timestamp
+  ///        and T_w_vk is the transformation (and uncertainty) that
+  ///        transforms points from the vehicle frame to the world frame
+  virtual void setDescribedFrameCallback(const DescribedFrameCallback & describedFrameCallback);
+
   /// \brief Set the fullStateCallback to be called every time a new state is estimated.
   ///        When an implementing class has an estimate, they can call:
   ///        _fullStateCallback( stamp, T_w_vk, speedAndBiases, omega_S);
@@ -309,6 +324,7 @@ class VioInterface {
   bool writeTracksCsvDescription(size_t cameraId);
 
   StateCallback stateCallback_; ///< State callback function.
+  DescribedFrameCallback describedFrameCallback_; ///< State callback function.
   FullStateCallback fullStateCallback_; ///< Full state callback function.
   FullStateCallbackWithExtrinsics fullStateCallbackWithExtrinsics_; ///< Full state and extrinsics callback function.
   LandmarksCallback landmarksCallback_; ///< Landmarks callback function.

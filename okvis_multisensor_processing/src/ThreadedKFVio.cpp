@@ -595,6 +595,7 @@ void ThreadedKFVio::imuConsumerLoop() {
       }
       result.onlyPublishLandmarks = false;
       optimizationResults_.PushNonBlockingDroppingIfFull(result,1);
+//      LOG(WARNING) << "1) size of optimizationResult queue: " << optimizationResults_.Size();
     }
     processImuTimer.stop();
   }
@@ -764,7 +765,8 @@ void ThreadedKFVio::optimizationLoop() {
       marginalizationTimer.start();
       estimator_.applyMarginalizationStrategy(
           parameters_.optimization.numKeyframes,
-          parameters_.optimization.numImuFrames, result.transferredLandmarks);
+          parameters_.optimization.numImuFrames, result.transferredLandmarks,
+          result.transferredDescriptors);
       marginalizationTimer.stop();
       afterOptimizationTimer.start();
 
@@ -831,6 +833,53 @@ void ThreadedKFVio::optimizationLoop() {
       }
 
       optimizationDone_ = true;
+
+      // if current frame is a keyframe publish it for global map alignment
+//      if (estimator_.isKeyframe(estimator_.currentFrameId())) {
+        // get keypoints and descriptors of the frame:
+        estimator_.multiFrame(estimator_.currentFrameId())->getCvKeypoints(0, last_keypoints_);
+        last_descriptors_ = estimator_.multiFrame(estimator_.currentFrameId())->cvKeypointDescriptors(0);
+        // estimate distance to structure based on all good keypoints in image
+        double z_body = lastOptimized_T_WS_.r()[2];
+        okvis::PointMap landmarks;
+        estimator_.getLandmarks(landmarks);
+        int N = 0;
+        double estimated_distance = 0.0;
+        for (PointMap::const_reverse_iterator it=landmarks.rbegin(); it!=landmarks.rend(); ++it) {
+          if (it->second.quality < 0.01) {
+            continue;
+          }
+          if ( fabs((double) (it->second.point[3])) < 1.0e-8) {
+            continue;
+          }
+          double z_point = it->second.point[2]/it->second.point[3];
+          double distance = z_body-z_point;
+          if (distance < 0.1 || distance > 100.0) {
+            continue;
+          }
+          N++;
+          estimated_distance = 1.0/N*(estimated_distance*(N-1) + distance);
+          if (N >= 25) break;
+        }
+        if (N < 10 || estimated_distance < 0.1 || estimated_distance > 100.0) {
+          if (estimated_distance_to_structure_ < 0.1 || estimated_distance_to_structure_ > 100.0) {
+            estimated_distance_to_structure_ = 0.5;
+            LOG(INFO) << "estimated distance to structure not meaningful. Take default of " << estimated_distance_to_structure_;
+          } else {
+            LOG(INFO) << "estimated distance to structure not meaningful. Keep last estimate of " << estimated_distance_to_structure_;
+          }
+        } else {
+          estimated_distance_to_structure_ = estimated_distance;
+          // LOG(INFO) << "estimated distance to structure = " << estimated_distance_to_structure_ << ", based on " << N << " points.";
+        }
+        // callback
+        describedFrameCallback_(lastOptimizedStateTimestamp_,
+                            lastOptimized_T_WS_,
+                            *parameters_.nCameraSystem.T_SC(0),
+                            last_keypoints_,
+                            last_descriptors_,
+                            estimated_distance_to_structure_);
+
     }  // unlock mutex
     optimizationNotification_.notify_all();
 
@@ -842,6 +891,7 @@ void ThreadedKFVio::optimizationLoop() {
                 *parameters_.nCameraSystem.T_SC(i)));
       }
     }
+
     optimizationResults_.Push(result);
 
     // adding further elements to visualization data that do not access estimator
@@ -873,7 +923,8 @@ void ThreadedKFVio::publisherLoop() {
                                        result.vector_of_T_SCi);
     if (landmarksCallback_ && !result.landmarksVector.empty())
       landmarksCallback_(result.stamp, result.landmarksVector,
-                         result.transferredLandmarks);  //TODO(gohlp): why two maps?
+                         result.transferredLandmarks,
+                         result.transferredDescriptors);  //TODO(gohlp): why two maps?
   }
 }
 

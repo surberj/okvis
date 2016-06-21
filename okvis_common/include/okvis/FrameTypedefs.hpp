@@ -45,6 +45,7 @@
 
 #include <Eigen/Core>
 #include <okvis/kinematics/Transformation.hpp>
+#include <opencv2/core/core.hpp> // Code that causes warning goes here
 
 /// \brief okvis Main namespace of this package.
 namespace okvis {
@@ -174,6 +175,37 @@ typedef std::map<uint64_t, MapPoint, std::less<uint64_t>,
     Eigen::aligned_allocator<MapPoint> > PointMap;
 typedef std::map<uint64_t, okvis::kinematics::Transformation, std::less<uint64_t>,
     Eigen::aligned_allocator<okvis::kinematics::Transformation> > TransformationMap;
+
+/**
+ * @brief A type to store the descriptor of a MapPoint
+ */
+struct MapPointDescriptor
+{
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  /// \brief Default constructor. Descriptor is empty, point gets ID 0.
+  MapPointDescriptor()
+      : id(0)
+  {
+  }
+  /**
+   * @brief Constructor.
+   * @param id          ID of the point. E.g. landmark ID.
+   * @param descriptor  Descriptor as a one row cv::Mat.
+   */
+  MapPointDescriptor(uint64_t id, const cv::Mat & inputDescriptor)
+      : id(id),
+        descriptor()
+  {
+    inputDescriptor.copyTo(descriptor);
+  }
+  uint64_t id;            ///< ID of the point. E.g. landmark ID.
+  cv::Mat descriptor;     ///< Descriptor as a one row cv::Mat.
+};
+
+typedef std::vector<MapPointDescriptor, Eigen::aligned_allocator<MapPointDescriptor> > MapPointDescriptorVector;
+typedef std::map<uint64_t, MapPointDescriptor, std::less<uint64_t>,
+    Eigen::aligned_allocator<MapPointDescriptor> > PointDescriptorMap;
 
 /// \brief For convenience to pass associations - also contains the 3d points.
 struct Observation

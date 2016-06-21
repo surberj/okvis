@@ -433,7 +433,8 @@ bool vectorContains(const std::vector<T> & vector, const T & query){
 // The new number of frames in the window will be numKeyframes+numImuFrames.
 bool Estimator::applyMarginalizationStrategy(
     size_t numKeyframes, size_t numImuFrames,
-    okvis::MapPointVector& removedLandmarks)
+    okvis::MapPointVector& removedLandmarks,
+    okvis::MapPointDescriptorVector& removedDescriptors)
 {
   // keep the newest numImuFrames
   std::map<uint64_t, States>::reverse_iterator rit = statesMap_.rbegin();
@@ -625,6 +626,7 @@ bool Estimator::applyMarginalizationStrategy(
       for(PointMap::iterator pit = landmarksMap_.begin();
           pit != landmarksMap_.end(); ){
 
+        okvis::PointDescriptorMap keepDescriptors;
         ceres::Map::ResidualBlockCollection residuals = mapPtr_->residuals(pit->first);
 
         // first check if we can skip
@@ -663,6 +665,7 @@ bool Estimator::applyMarginalizationStrategy(
         if(residuals.size()==0){
           mapPtr_->removeParameterBlock(pit->first);
           removedLandmarks.push_back(pit->second);
+          LOG(WARNING) << "removing without reason :).";
           pit = landmarksMap_.erase(pit);
           continue;
         }
@@ -681,11 +684,32 @@ bool Estimator::applyMarginalizationStrategy(
             uint64_t poseId = mapPtr_->parameters(residuals[r].residualBlockId).at(0).first;
             if((vectorContains(removeFrames,poseId) && hasNewObservations) ||
                 (!vectorContains(allLinearizedFrames,poseId) && marginalize)){
-              // ok, let's ignore the observation.
+              // ok, let's ignore the observation but keep the descriptor.
+              if (pit->second.observations.size() > 0) {
+                okvis::KeypointIdentifier kpId = pit->second.observations.rbegin()->first;          
+                okvis::MultiFramePtr mf = multiFrame(kpId.frameId);
+                const okvis::MapPointDescriptor descriptor(pit->second.id, mf->cvKeypointDescriptor(kpId.cameraIndex, 
+                                    kpId.keypointIndex));
+                keepDescriptors.insert(std::pair<uint64_t, const okvis::MapPointDescriptor>(
+                                    pit->second.id, descriptor));
+              } else {
+                LOG(WARNING) << "no observations of point " << pit->second.id;
+              }
               removeObservation(residuals[r].residualBlockId);
               residuals.erase(residuals.begin() + r);
               r--;
             } else if(marginalize && vectorContains(allLinearizedFrames,poseId)) {
+              // keep the descriptor also in that case
+              if (pit->second.observations.size() > 0) {
+                okvis::KeypointIdentifier kpId = pit->second.observations.rbegin()->first;          
+                okvis::MultiFramePtr mf = multiFrame(kpId.frameId);
+                const okvis::MapPointDescriptor descriptor(pit->second.id, mf->cvKeypointDescriptor(kpId.cameraIndex, 
+                                    kpId.keypointIndex));
+                keepDescriptors.insert(std::pair<uint64_t, const okvis::MapPointDescriptor>(
+                                    pit->second.id, descriptor));
+              } else {
+                LOG(WARNING) << "no observations of point " << pit->second.id;
+              }
               // TODO: consider only the sensible ones for marginalization
               if(obsCount<2){ //visibleInFrame.size()
                 removeObservation(residuals[r].residualBlockId);
@@ -709,6 +733,11 @@ bool Estimator::applyMarginalizationStrategy(
         if(justDelete){
           mapPtr_->removeParameterBlock(pit->first);
           removedLandmarks.push_back(pit->second);
+          // push back descriptor for removed landmark (from keepDescriptors to removedDescriptors)
+          if(keepDescriptors.find(pit->second.id) == keepDescriptors.end())
+            LOG(WARNING) << "1: descriptor with id " << pit->second.id << " does not exist.";
+          else
+            removedDescriptors.push_back(keepDescriptors.at(pit->second.id));
           pit = landmarksMap_.erase(pit);
           continue;
         }
@@ -716,6 +745,11 @@ bool Estimator::applyMarginalizationStrategy(
           paremeterBlocksToBeMarginalized.push_back(pit->first);
           keepParameterBlocks.push_back(false);
           removedLandmarks.push_back(pit->second);
+          // push back descriptor for removed landmark (from keepDescriptors to removedDescriptors)
+          if(keepDescriptors.find(pit->second.id) == keepDescriptors.end())
+            LOG(WARNING) << "2: descriptor with id " << pit->second.id << " does not exist.";
+          else
+            removedDescriptors.push_back(keepDescriptors.at(pit->second.id));
           pit = landmarksMap_.erase(pit);
           continue;
         }

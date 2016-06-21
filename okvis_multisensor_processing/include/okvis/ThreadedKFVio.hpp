@@ -302,6 +302,7 @@ class ThreadedKFVio : public VioInterface {
         Eigen::aligned_allocator<okvis::kinematics::Transformation> > vector_of_T_SCi;
     okvis::MapPointVector landmarksVector;      ///< Vector containing the current landmarks.
     okvis::MapPointVector transferredLandmarks; ///< Vector of the landmarks that have been marginalized out.
+    okvis::MapPointDescriptorVector transferredDescriptors;     ///< Vector of the descriptors of the landmarks that have been marginalized out.
     bool onlyPublishLandmarks;                  ///< Boolean to signalise the publisherLoop() that only the landmarks should be published
   };
 
@@ -329,6 +330,11 @@ class ThreadedKFVio : public VioInterface {
   /// the state from the lastOptimizedStateTimestamp_.
   std::atomic_bool repropagationNeeded_;
 
+  // variables to publish described frame for global map alignment:
+  std::vector<cv::KeyPoint> last_keypoints_;
+  cv::Mat last_descriptors_;
+  double estimated_distance_to_structure_;
+  
   /// @}
 
   ImuFrameSynchronizer imuFrameSynchronizer_;  ///< The IMU frame synchronizer.

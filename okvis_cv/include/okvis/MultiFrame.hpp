@@ -181,6 +181,13 @@ class MultiFrame
   inline bool getCvKeypoint(size_t cameraIdx, size_t keypointIdx,
                             cv::KeyPoint & keypoint) const;
 
+  /// \brief Access all keypoints in OpenCV format
+  /// @param[in] cameraIdx The camera index.s
+  /// @param[out] keypoints  the requested keypoints.
+  /// \return whether or not the operation was successful.
+  inline bool getCvKeypoints(size_t cameraIdx,
+                            std::vector<cv::KeyPoint> & keypoints) const;
+
   /// \brief Get a specific keypoint
   /// @param[in] cameraIdx The camera index.
   /// @param[in] keypointIdx The requested keypoint's index.
@@ -203,6 +210,17 @@ class MultiFrame
   /// \return The descriptor data pointer; NULL if out of bounds.
   inline const unsigned char * keypointDescriptor(size_t cameraIdx,
                                                   size_t keypointIdx);
+
+  /// \brief Obtain a descriptor -- CAUTION: slow version
+  /// @param[in] cameraIdx The camera index.
+  /// \return The image.
+  inline const cv::Mat & cvKeypointDescriptor(size_t cameraIdx, 
+                              size_t keypointIdx);
+
+  /// \brief Obtain a descriptor -- CAUTION: slow version
+  /// @param[in] cameraIdx The camera index.
+  /// \return The image.
+  inline const cv::Mat & cvKeypointDescriptors(size_t cameraIdx);
 
   /// \brief Set the landmark ID
   /// @param[in] cameraIdx The camera index.

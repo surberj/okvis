@@ -198,6 +198,14 @@ bool MultiFrame::getCvKeypoint(size_t cameraIdx, size_t keypointIdx,
   return frames_[cameraIdx].getCvKeypoint(keypointIdx, keypoint);
 }
 
+// Access all keypoints in OpenCV format
+bool MultiFrame::getCvKeypoints(size_t cameraIdx,
+                               std::vector<cv::KeyPoint> & keypoints) const
+{
+  OKVIS_ASSERT_TRUE_DBG(Exception, cameraIdx < frames_.size(), "Out of range");
+  return frames_[cameraIdx].getCvKeypoints(keypoints);
+}
+
 // Get a specific keypoint
 bool MultiFrame::getKeypoint(size_t cameraIdx, size_t keypointIdx,
                              Eigen::Vector2d & keypoint) const
@@ -221,6 +229,23 @@ const unsigned char * MultiFrame::keypointDescriptor(size_t cameraIdx,
 {
   OKVIS_ASSERT_TRUE_DBG(Exception, cameraIdx < frames_.size(), "Out of range");
   return frames_[cameraIdx].keypointDescriptor(keypointIdx);
+}
+
+// Access the descriptor -- CAUTION: slow version.
+///        returns the descriptor as cv::Mat.
+const cv::Mat & MultiFrame::cvKeypointDescriptor(size_t cameraIdx,
+                                                     size_t keypointIdx)
+{
+  OKVIS_ASSERT_TRUE_DBG(Exception, cameraIdx < frames_.size(), "Out of range");
+  return frames_[cameraIdx].cvKeypointDescriptor(keypointIdx);
+}
+
+// Access all descriptors -- CAUTION: slow version.
+///        returns the descriptors as cv::Mat.
+const cv::Mat & MultiFrame::cvKeypointDescriptors(size_t cameraIdx)
+{
+  OKVIS_ASSERT_TRUE_DBG(Exception, cameraIdx < frames_.size(), "Out of range");
+  return frames_[cameraIdx].cvKeypointDescriptors();
 }
 
 // Set the landmark ID
