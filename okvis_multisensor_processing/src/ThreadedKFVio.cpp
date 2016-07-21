@@ -763,14 +763,14 @@ void ThreadedKFVio::optimizationLoop() {
     if (count <= parameters_.optimization.Nfirst) {
       skip = false;
       LOG(INFO) << "offline version: Fade-in, RUN opt. on " << count << "th frame; Nframes=" << estimator_.numFrames();
-    } else if (count % parameters_.optimization.Nnormal == 0) {
-      skip = false;
-      LOG(INFO) << "offline version: RUN opt. on " << count << "th frame; Nframes=" << estimator_.numFrames();
     } else if (count >= parameters_.optimization.startFadeoutFrame) {
       LOG(INFO) << "offline version: Fade-out, RUN opt. on " << count << "th frame; Nframes=" << estimator_.numFrames();
       fadeout = true;
       postcount++;
       skip = false;
+    } else if (count % parameters_.optimization.Nnormal == 0) {
+      skip = false;
+      LOG(INFO) << "offline version: RUN opt. on " << count << "th frame; Nframes=" << estimator_.numFrames();
     } else {
       skip = true;
     }
