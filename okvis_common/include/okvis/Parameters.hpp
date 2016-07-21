@@ -243,6 +243,10 @@ struct Optimization{
   int maxNoKeypoints;       ///< Restrict to a maximum of this many keypoints per image (strongest ones).
   int numKeyframes; ///< Number of keyframes.
   int numImuFrames; ///< Number of IMU frames.
+  size_t Nfirst; ///< Run the optimization/marginalization for these N frames on every frame
+  size_t Nnormal; ///< Run the optimization/marginalization every Nnormal'th frame
+  size_t Nlast; ///< Fadeout and marginalize out all points within the optimization over these N last frames.
+  size_t startFadeoutFrame; ///< Start the fadeout at this frame.
 };
 
 /**

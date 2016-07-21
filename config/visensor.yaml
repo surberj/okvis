@@ -55,6 +55,13 @@ imu_params:
 numKeyframes: 300 # number of keyframes in optimisation window
 numImuFrames: 5 # number of frames linked by most recent nonlinear IMU error terms
 
+# OfflineSfM parameters
+SfM:
+    Nfirst: 80              # Run the optimization/marginalization for these N frames on every frame
+    Nnormal: 10             # Run the optimization/marginalization every Nnormal'th frame
+    Nlast: 10               # Fadeout and marginalize out all points within the optimization over these N last frames.
+    startFadeoutFrame: 2201 # Start the fadeout at this frame.
+
 # ceres optimization options
 ceres_options:
     minIterations: 2   # minimum number of iterations always performed
@@ -71,7 +78,7 @@ detection_options:
 imageDelay: 0.0  # in case you are using a custom setup, you will have to calibrate this. 0 for the VISensor.
 
 # display debug images?
-displayImages: false  # displays debug video and keyframe matches. May be slow.
+displayImages: true  # displays debug video and keyframe matches. May be slow.
 
 # use direct driver
 useDriver: false 

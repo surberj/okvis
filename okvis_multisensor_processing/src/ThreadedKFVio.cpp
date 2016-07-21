@@ -744,11 +744,6 @@ void ThreadedKFVio::optimizationLoop() {
   size_t count = 0;
   size_t postcount = 0;
   bool fadeout = false;
-  // run optimization on the first Nfirst frames, from then on every Rnormal'th frame and for the last Nlast frames
-  size_t Nfirst = 80;
-  size_t Rnormal = 10;
-  size_t Nlast = 10;
-  size_t startFadeoutFrame = 2201;
 
   for (;;) {
     std::shared_ptr<okvis::MultiFrame> frame_pairs;
@@ -757,7 +752,7 @@ void ThreadedKFVio::optimizationLoop() {
     if (matchedFrames_.PopBlocking(&frame_pairs) == false)
       return;
 
-    if(postcount > Nlast) {
+    if(postcount > parameters_.optimization.Nlast) {
       last_image_ = true;
       std::this_thread::sleep_for(std::chrono::milliseconds(1000));
       continue;
@@ -765,13 +760,13 @@ void ThreadedKFVio::optimizationLoop() {
 
     OptimizationResults result;
     bool skip;
-    if (count <= Nfirst) {
+    if (count <= parameters_.optimization.Nfirst) {
       skip = false;
       LOG(INFO) << "offline version: Fade-in, RUN opt. on " << count << "th frame; Nframes=" << estimator_.numFrames();
-    } else if (count % Rnormal == 0) {
+    } else if (count % parameters_.optimization.Nnormal == 0) {
       skip = false;
       LOG(INFO) << "offline version: RUN opt. on " << count << "th frame; Nframes=" << estimator_.numFrames();
-    } else if (count >= startFadeoutFrame) {
+    } else if (count >= parameters_.optimization.startFadeoutFrame) {
       LOG(INFO) << "offline version: Fade-out, RUN opt. on " << count << "th frame; Nframes=" << estimator_.numFrames();
       fadeout = true;
       postcount++;
@@ -815,9 +810,9 @@ void ThreadedKFVio::optimizationLoop() {
             ->timestamp() - temporal_imu_data_overlap;
       }
       if (fadeout && estimator_.numFrames()
-          > size_t((Nlast-postcount)*floor(parameters_.optimization.numImuFrames/Nlast)+1)) {
+          > size_t((parameters_.optimization.Nlast-postcount)*floor(parameters_.optimization.numImuFrames/parameters_.optimization.Nlast)+1)) {
         deleteImuMeasurementsUntil = estimator_.multiFrame(
-            estimator_.frameIdByAge((Nlast-postcount)*floor(parameters_.optimization.numImuFrames/Nlast)+1))
+            estimator_.frameIdByAge((parameters_.optimization.Nlast-postcount)*floor(parameters_.optimization.numImuFrames/parameters_.optimization.Nlast)+1))
             ->timestamp() - temporal_imu_data_overlap;
       }
 
@@ -830,8 +825,8 @@ void ThreadedKFVio::optimizationLoop() {
       }
       if(fadeout) {
         estimator_.applyMarginalizationStrategy(
-          (Nlast-postcount)*floor(parameters_.optimization.numKeyframes/Nlast)+1, 
-          (Nlast-postcount)*floor(parameters_.optimization.numImuFrames/Nlast)+1, 
+          (parameters_.optimization.Nlast-postcount)*floor(parameters_.optimization.numKeyframes/parameters_.optimization.Nlast)+1, 
+          (parameters_.optimization.Nlast-postcount)*floor(parameters_.optimization.numImuFrames/parameters_.optimization.Nlast)+1, 
           result.transferredLandmarks,
           result.transferredDescriptors);
       }

@@ -100,6 +100,38 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
         << "numImuFrames parameter not provided. Setting to default numImuFrames=2.";
     vioParameters_.optimization.numImuFrames = 2;
   }
+  // offlineSfM options: Nfirst (Fadein)
+  if (file["SfM"]["Nfirst"].isInt()) {
+    vioParameters_.optimization.Nfirst = (int) (file["SfM"]["Nfirst"]);
+  } else {
+    LOG(WARNING)
+        << "Nfirst parameter not provided. Setting to default Nfirst=100.";
+    vioParameters_.optimization.Nfirst = 100;
+  }
+  // offlineSfM options: Nnormal
+  if (file["SfM"]["Nnormal"].isInt()) {
+    vioParameters_.optimization.Nnormal = (int) (file["SfM"]["Nnormal"]);
+  } else {
+    LOG(WARNING)
+        << "Nnormal parameter not provided. Setting to default Nnormal=10.";
+    vioParameters_.optimization.Nnormal = 10;
+  }
+  // offlineSfM options: Nlast (Fadeout)
+  if (file["SfM"]["Nlast"].isInt()) {
+    vioParameters_.optimization.Nlast = (int) (file["SfM"]["Nlast"]);
+  } else {
+    LOG(WARNING)
+        << "Nlast parameter not provided. Setting to default Nlast=10.";
+    vioParameters_.optimization.Nlast = 10;
+  }
+  // offlineSfM options: startFadeoutFrame (Fadeout)
+  if (file["SfM"]["startFadeoutFrame"].isInt()) {
+    vioParameters_.optimization.startFadeoutFrame = (int) (file["SfM"]["startFadeoutFrame"]);
+  } else {
+    LOG(WARNING)
+        << "startFadeoutFrame parameter not provided. Setting to default startFadoutFrame=1000.";
+    vioParameters_.optimization.startFadeoutFrame = 1000;
+  }
   // minimum ceres iterations
   if (file["ceres_options"]["minIterations"].isInt()) {
     file["ceres_options"]["minIterations"]
